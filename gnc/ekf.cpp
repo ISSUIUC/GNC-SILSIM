@@ -1,5 +1,5 @@
 #include "ekf.h"
-#include "../simulation/fsm_states.h" // for sim
+#include "fsm_states.h" // for sim
 //#include "finite-state-machines/fsm_states.h"
 
 extern const std::map<float, float> O5500X_data;
