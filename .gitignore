@@ -39,3 +39,4 @@ venv/
 results*.csv
 test_*.csv
 output*.csv
+./gnc/Eigen
