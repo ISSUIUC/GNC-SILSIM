@@ -21,7 +21,7 @@ class EKF : public KalmanFilter<NUM_STATES, NUM_SENSOR_INPUTS>
 public:
     EKF();
     void initialize(RocketSystems* args) override;
-    void priori();
+    void priori() override;
     void priori(float dt, Orientation &orientation, FSMState fsm); 
     void update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState state) override;
 

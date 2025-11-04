@@ -207,6 +207,7 @@ private:
             case FSMState::STATE_SUSTAINER_IGNITION: return "STATE_SUSTAINER_IGNITION";
             case FSMState::STATE_SECOND_BOOST: return "STATE_SECOND_BOOST";
             case FSMState::STATE_FIRST_SEPARATION: return "STATE_FIRST_SEPARATION";
+            default: return "UNKNOWN_STATE";
         }
         return "STATE_SAFE";
     }
