@@ -1,0 +1,41 @@
+# CSV files - flight data and results
+*.csv
+/MIDAS Sustainer (Trimmed CSV).csv
+
+# Build artifacts
+build/
+test_ekf
+*.o
+*.so
+*.a
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# Results and output files
+results*.csv
+test_*.csv
+output*.csv

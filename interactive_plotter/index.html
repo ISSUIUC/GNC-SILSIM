@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EKF Interactive Plotter</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-item label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9em;
+        }
+
+        .control-item select {
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+            background: white;
+            transition: all 0.3s ease;
+            min-width: 200px;
+        }
+
+        .control-item select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .control-item select:hover {
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .plot-container {
+            padding: 30px;
+            height: 600px;
+        }
+
+        .info-panel {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-item h4 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-item p {
+            color: #6c757d;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #6c757d;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px;
+            border: 1px solid #f5c6cb;
+        }
+
+        @media (max-width: 768px) {
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .control-item select {
+                min-width: auto;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 EKF Interactive Plotter</h1>
+            <p>Visualize your Extended Kalman Filter simulation results with interactive controls</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <div class="control-item">
+                    <label for="dataType">Data Type</label>
+                    <select id="dataType">
+                        <option value="pos_x">Position X</option>
+                        <option value="pos_y">Position Y</option>
+                        <option value="pos_z">Position Z</option>
+                        <option value="vel_x">Velocity X</option>
+                        <option value="vel_y">Velocity Y</option>
+                        <option value="vel_z">Velocity Z</option>
+                        <option value="acc_x">Acceleration X</option>
+                        <option value="acc_y">Acceleration Y</option>
+                        <option value="acc_z">Acceleration Z</option>
+                        <option value="altitude">Altitude</option>
+                    </select>
+                </div>
+
+                <div class="control-item">
+                    <label for="fsmFrom">FSM State From</label>
+                    <select id="fsmFrom">
+                        <option value="STATE_IDLE">IDLE</option>
+                        <option value="STATE_FIRST_BOOST">FIRST_BOOST</option>
+                        <option value="STATE_BURNOUT">BURNOUT</option>
+                        <option value="STATE_COAST">COAST</option>
+                        <option value="STATE_APOGEE">APOGEE</option>
+                        <option value="STATE_DROGUE_DEPLOY">DROGUE_DEPLOY</option>
+                        <option value="STATE_DROGUE">DROGUE</option>
+                        <option value="STATE_MAIN_DEPLOY">MAIN_DEPLOY</option>
+                        <option value="STATE_MAIN">MAIN</option>
+                        <option value="STATE_LANDED">LANDED</option>
+                        <option value="STATE_SUSTAINER_IGNITION">SUSTAINER_IGNITION</option>
+                        <option value="STATE_SECOND_BOOST">SECOND_BOOST</option>
+                        <option value="STATE_FIRST_SEPARATION">FIRST_SEPARATION</option>
+                    </select>
+                </div>
+
+                <div class="control-item">
+                    <label for="fsmTo">FSM State To</label>
+                    <select id="fsmTo">
+                        <option value="STATE_IDLE">IDLE</option>
+                        <option value="STATE_FIRST_BOOST">FIRST_BOOST</option>
+                        <option value="STATE_BURNOUT">BURNOUT</option>
+                        <option value="STATE_COAST">COAST</option>
+                        <option value="STATE_APOGEE">APOGEE</option>
+                        <option value="STATE_DROGUE_DEPLOY">DROGUE_DEPLOY</option>
+                        <option value="STATE_DROGUE">DROGUE</option>
+                        <option value="STATE_MAIN_DEPLOY">MAIN_DEPLOY</option>
+                        <option value="STATE_MAIN">MAIN</option>
+                        <option value="STATE_LANDED">LANDED</option>
+                        <option value="STATE_SUSTAINER_IGNITION">SUSTAINER_IGNITION</option>
+                        <option value="STATE_SECOND_BOOST">SECOND_BOOST</option>
+                        <option value="STATE_FIRST_SEPARATION">FIRST_SEPARATION</option>
+                    </select>
+                </div>
+
+                <div class="control-item">
+                    <label for="rawData">Show Raw Data</label>
+                    <select id="rawData">
+                        <option value="none">None</option>
+                        <option value="raw_baro_alt">Raw Barometer Altitude</option>
+                        <option value="raw_highg_ax">Raw HighG X</option>
+                        <option value="raw_highg_ay">Raw HighG Y</option>
+                        <option value="raw_highg_az">Raw HighG Z</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="resetView()">Reset View</button>
+            </div>
+        </div>
+
+        <div class="plot-container">
+            <div id="plot" style="width: 100%; height: 100%;"></div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-grid">
+                <div class="info-item">
+                    <h4>Total Data Points</h4>
+                    <p id="totalPoints">-</p>
+                </div>
+                <div class="info-item">
+                    <h4>Filtered Points</h4>
+                    <p id="filteredPoints">-</p>
+                </div>
+                <div class="info-item">
+                    <h4>Flight Duration</h4>
+                    <p id="flightDuration">-</p>
+                </div>
+                <div class="info-item">
+                    <h4>Max Value</h4>
+                    <p id="maxValue">-</p>
+                </div>
+                <div class="info-item">
+                    <h4>Min Value</h4>
+                    <p id="minValue">-</p>
+                </div>
+                <div class="info-item">
+                    <h4>Current FSM</h4>
+                    <p id="currentFSM">-</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="plotter.js" defer></script>
+</body>
+</html>
