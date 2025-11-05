@@ -18,7 +18,7 @@ g++ -std=c++17 -O2 -Wall -Wextra \
     -I"$EIGEN_INCLUDE" \
     -I. \
     -Ignc \
-    simulation/test_ekf.cpp \
+    gnc/test_ekf.cpp \
     gnc/ekf.cpp \
     -o simulation/test_ekf
 
