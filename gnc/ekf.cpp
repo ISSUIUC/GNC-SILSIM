@@ -123,7 +123,7 @@ void EKF::initialize(RocketSystems *args)
     P_k.block<3, 3>(6, 6) = Eigen::Matrix3f::Identity() * 1e-2f; // z block
 
     // set
-    R(0, 0) = 10.0;
+    R(0, 0) = 1.9;
     R(1, 1) = 1.9;
     R(2, 2) = 1.9;
     R(3, 3) = 1.9;
@@ -218,9 +218,9 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
     float vz_body = velocities_body(2, 0);
 
     Eigen::Matrix<float, 3, 1> v_dot; // we compute everything in the body frame for accelerations, and then convert those accelerations to global frame
-    v_dot << ((Fax + Ftx) / curr_mass_kg - (omega_rps.vy * vz_body - omega_rps.vz * vy_body) + x_k(2, 0)) / 2,
-        ((Fay + Fty) / curr_mass_kg - (omega_rps.vz * vx_body - omega_rps.vx * vz_body) + x_k(5, 0) / 2),
-        ((Faz + Ftz) / curr_mass_kg - (omega_rps.vx * vy_body - omega_rps.vy * vx_body) + x_k(8, 0) / 2);
+    v_dot << ((Fax + Ftx) / curr_mass_kg),
+        ((Fay + Fty) / curr_mass_kg ),
+        ((Faz + Ftz) / curr_mass_kg );
 
     BodyToGlobal(angles_rad, v_dot);
 
@@ -242,7 +242,7 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
         coeff = -pi * Ca * (r * r) * rho / curr_mass_kg;
     }
 
-    setF(dt, omega_rps.vx, omega_rps.vy, omega_rps.vz, coeff, vx_body, vy_body, vz_body);
+    setF(dt, 0,0,0, coeff, vx_body, vy_body, vz_body);
 
     P_priori = (F_mat * P_k * F_mat.transpose()) + Q;
 }
@@ -276,7 +276,7 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     // ignore alitiude measurements after apogee
     else if (FSM_state == FSMState::STATE_APOGEE)
     {
-        H(1, 2) = 0;
+        // H(1, 2) = 0;
     }
 
     // Kalman Gain
@@ -289,7 +289,7 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     Eigen::Matrix<float, 3, 1> sensor_accel_global_g = Eigen::Matrix<float, 3, 1>(Eigen::Matrix<float, 3, 1>::Zero());
 
     // accouting for sensor bias and coordinate frame transforms
-    (sensor_accel_global_g)(0, 0) = -acceleration.ax + 0.045;
+    (sensor_accel_global_g)(0, 0) = acceleration.ax + 0.045;
     (sensor_accel_global_g)(1, 0) = acceleration.ay - 0.065;
     (sensor_accel_global_g)(2, 0) = acceleration.az - 0.06;
 
