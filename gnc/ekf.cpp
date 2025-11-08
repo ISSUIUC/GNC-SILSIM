@@ -1,5 +1,6 @@
 #include "ekf.h"
 #include "fsm_states.h" // for sim
+#include <iostream>
 //#include "finite-state-machines/fsm_states.h"
 
 extern const std::map<float, float> O5500X_data;
@@ -161,13 +162,15 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
     }
 
     // mass and height init
-    float curr_mass_kg = mass_sustainer;
     float curr_height_m = height_sustainer;
 
     if (fsm < FSMState::STATE_BURNOUT)
     {
-        curr_mass_kg = mass_full;
-        curr_height_m = height_full;
+       curr_height_m = height_full;
+    }
+    if(fsm ==FSMState::STATE_FIRST_BOOST){
+        std::cout << curr_mass_kg<<std::endl;
+        curr_mass_kg = mass_full - (mass_full - mass_first_burnout)*stage_timestamp/2.75;
     }
 
     // Mach number // Subtracting wind from velocity

@@ -50,6 +50,7 @@ private:
     float Cn = 0;
     float Wind_alpha = 0.85f;
     float Cp = 0;
+    float curr_mass_kg = mass_full; //(kg) Sustainer + Booster, but value changes over time.
     
     // Eigen::Matrix<float,3,1> gravity = Eigen::Matrix<float,3,1>::Zero();
     KalmanState kalman_state;
