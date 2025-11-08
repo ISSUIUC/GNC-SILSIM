@@ -1,10 +1,147 @@
-#!/usr/bin/env python3
+
 
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import os
+
+
+# def plot_telemega_results(csv_file="output/telemega.csv"):
+#     if not os.path.exists(csv_file):
+#         print(f"Error: File {csv_file} not found")
+#         print("Please run the C++ simulation first to generate results")
+#         return
+    
+#     # Get the directory of the CSV file to save plots in the same location
+#     csv_dir = os.path.dirname(os.path.abspath(csv_file))
+#     if not csv_dir:
+#         csv_dir = "."
+    
+#     try:
+#         df = pd.read_csv(csv_file)
+#         print(f"Loaded {len(df)} data points from {csv_file}")
+#     except Exception as e:
+#         print(f"Error reading CSV file: {e}")
+#         return
+    
+#     fig1, axes1 = plt.subplots(3, 3, figsize=(15, 12))
+#     fig1.suptitle('EKF Simulation Results - Standalone Plots', fontsize=16)
+    
+#     fig2, axes2 = plt.subplots(2, 2, figsize=(12, 10))
+#     fig2.suptitle('EKF Simulation Results - Comparison Plots', fontsize=16)
+    
+#     return None
+
+
+
+def benchmark_results(csv_file1 ="output/TeleMega (AL3, EEPROM).csv", csv_file2 = "output/results.csv"):
+    
+    def exist(file):
+        if not os.path.exists(file):        
+            print(f"Error: File {csv_file1} not found")
+            print("Please run the C++ simulation first to generate results")
+        return
+    exist(csv_file1)
+    exist(csv_file2)
+
+    
+    # Get the directory of the CSV file to save plots in the same location
+    csv_dir1 = os.path.dirname(os.path.abspath(csv_file1))
+    csv_dir2 = os.path.dirname(os.path.abspath(csv_file2))
+    if not csv_dir1:
+        csv_dir1 = "."
+    if not csv_dir2:
+        csv_dir2 = "."
+    
+    try:
+        df1 = pd.read_csv(csv_file1)
+        df2 = pd.read_csv(csv_file2)
+        print(f"Loaded {len(df1)} data points from {csv_file1}")
+        print(f"Loaded {len(df2)} data points from {csv_file2}")
+    except Exception as e:
+        print(f"Error reading CSV file: {e}")
+        return
+    
+
+    # fig1 = plt.figure(figsize=(15, 12))
+    # fig1.suptitle('EKF Simulation Results - Standalone Plots', fontsize=16)
+    
+    # fig2, axes2 = plt.subplots(2, 2, figsize=(12, 10))
+    # fig2.suptitle('EKF Simulation Results - Comparison Plots', fontsize=16)
+    
+    time1 = df1['time'] # Telemega Time
+    time2 = df2['timestamp'] # ISS EKF Time
+
+      
+    # time_max_accelx = time2[df2['acc_x'].idxmax()] 
+    # print(type(time_max_accelx))
+
+    # for i in range(len(time1)):
+    #     time1[i] += float(time_max_accelx)
+    
+    
+    # fsm_changes = []
+    # used_states_order = []
+    # if 'fsm' in df.columns:
+    #     prev = None
+    #     for i, (t, s) in enumerate(zip(df['time'], df['fsm'])):
+    #         if i == 0:
+    #             prev = s
+    #             fsm_changes.append((t, s))
+    #             if s not in used_states_order:
+    #                 used_states_order.append(s)
+    #         else:
+    #             if s != prev:
+    #                 fsm_changes.append((t, s))
+    #                 if s not in used_states_order:
+    #                     used_states_order.append(s)
+    #                 prev = s
+
+
+
+    # Add 100 to pos_x in EKF results to align with Telemega data
+    df2['pos_x'] += 100
+    df1['altitude'] -= 100
+
+    # Add 3.5 seconds to time2 in EKF results to align with Telemega data
+    time2 -= 3.5
+
+    fig1, ax = plt.subplots(3, 2, figsize=(15,12))
+    ax[0,0].plot(time1, df1['altitude'], label='Telemega')
+    ax[0,0].set_title('Position X')
+    ax[0,0].set_ylabel('Position (m)')
+
+    ax[0,0].plot(time2, df2['pos_x'], label = 'ISS EKF')
+    ax[0,0].legend()
+    
+
+    # ax[1].plot(time1, df1['accel_y'], label='Telemega')
+    # ax[1].set_title('Acceleration Y')
+    # ax[1].set_ylabel('Position (m)')
+    # ax[1].legend()
+
+    
+    # ax[2].plot(time1, df1['accel_z'], label='Telemega')
+    # ax[2].set_title('Acceleration Z')
+    # ax[2].set_ylabel('Position (m)')
+    # ax[2].legend()
+
+
+    
+    
+    
+    # plt.plot(time, df['altitude'], 'b-', linewidth=1)
+    # plt.title('Acceleration X ')
+    # plt.ylabel('Position (m)')
+    # plt.grid(True)    
+
+    # plt.tight_layout()
+    # fig1.show()
+    plt.show()
+
+
+
 
 def plot_ekf_results(csv_file="output/results.csv"):
     if not os.path.exists(csv_file):
@@ -220,9 +357,11 @@ def main():
     if len(sys.argv) > 1:
         csv_file = sys.argv[1]
     else:
-        csv_file = "output/results.csv"
+        csv_file2 = "output/results.csv"
+        csv_file1 = "output/TeleMega (AL3, EEPROM).csv"
     
-    plot_ekf_results(csv_file)
+    # plot_ekf_results(csv_file)
+    benchmark_results(csv_file1, csv_file2)
 
 if __name__ == "__main__":
     main()
