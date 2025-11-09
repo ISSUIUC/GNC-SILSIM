@@ -33,7 +33,9 @@ public:
 
     KalmanData getState() override;
     void setState(KalmanState state) override;
-
+    void compute_mass(FSMState fsm);
+    void compute_kalman_gain();
+    void compute_drag_coeffs(float vel_magnitude_ms);
     void getThrust(float timestamp, const euler_t& angles, FSMState FSM_state, Eigen::Vector3f& thrust_out);
 
     void tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState state);
@@ -44,7 +46,7 @@ public:
 
 private:
     float s_dt = 0.05f;
-    float spectral_density_ = 0.001f;
+    float spectral_density_ = 13.0f;
     float kalman_apo = 0;
     float Ca = 0;
     float Cn = 0;
