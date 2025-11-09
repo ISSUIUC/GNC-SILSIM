@@ -1,6 +1,6 @@
 #include "ekf.h"
 #include "fsm_states.h" // for sim
-//#include "finite-state-machines/fsm_states.h"
+// #include "finite-state-machines/fsm_states.h"
 
 extern const std::map<float, float> O5500X_data;
 extern const std::map<float, float> M685W_data;
@@ -54,7 +54,7 @@ void EKF::initialize(RocketSystems *args)
         // init_accel(0, 0) += -accelerations.ax;
         // init_accel(1, 0) += accelerations.ay;
         // init_accel(2, 0) += accelerations.az;
-        //THREAD_SLEEP(100);
+        // THREAD_SLEEP(100);
     }
 
     // init_accel(0, 0) /= 30;
@@ -172,7 +172,7 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
 
     // Mach number // Subtracting wind from velocity
     // float vel_mag_squared_ms = ((x_k(1, 0) - 1.2 * Wind(0, 0)) * (x_k(1, 0) - 1.2 * Wind(0, 0))) + x_k(4, 0) * x_k(4, 0) + x_k(7, 0) * x_k(7, 0);
-    float vel_mag_squared_ms = ((x_k(1, 0) ) * (x_k(1, 0) )) + x_k(4, 0) * x_k(4, 0) + x_k(7, 0) * x_k(7, 0);
+    float vel_mag_squared_ms = ((x_k(1, 0)) * (x_k(1, 0))) + x_k(4, 0) * x_k(4, 0) + x_k(7, 0) * x_k(7, 0);
 
     float vel_magnitude_ms = pow(vel_mag_squared_ms, 0.5);
 
@@ -218,9 +218,12 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
     float vz_body = velocities_body(2, 0);
 
     Eigen::Matrix<float, 3, 1> v_dot; // we compute everything in the body frame for accelerations, and then convert those accelerations to global frame
-    v_dot << ((Fax + Ftx) / curr_mass_kg - (omega_rps.vy * vz_body - omega_rps.vz * vy_body) + x_k(2, 0)) / 2,
-        ((Fay + Fty) / curr_mass_kg - (omega_rps.vz * vx_body - omega_rps.vx * vz_body) + x_k(5, 0) / 2),
-        ((Faz + Ftz) / curr_mass_kg - (omega_rps.vx * vy_body - omega_rps.vy * vx_body) + x_k(8, 0) / 2);
+    v_dot << ((Fax + Ftx) / curr_mass_kg),
+        ((Fay + Fty) / curr_mass_kg),
+        ((Faz + Ftz) / curr_mass_kg);
+    // v_dot << ((Fax + Ftx) / curr_mass_kg - (omega_rps.vy * vz_body - omega_rps.vz * vy_body) + x_k(2, 0)) / 2,
+    //     ((Fay + Fty) / curr_mass_kg - (omega_rps.vz * vx_body - omega_rps.vx * vz_body) + x_k(5, 0) / 2),
+    //     ((Faz + Ftz) / curr_mass_kg - (omega_rps.vx * vy_body - omega_rps.vy * vx_body) + x_k(8, 0) / 2);
 
     BodyToGlobal(angles_rad, v_dot);
 
@@ -242,11 +245,11 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
         coeff = -pi * Ca * (r * r) * rho / curr_mass_kg;
     }
 
-    setF(dt, omega_rps.vx, omega_rps.vy, omega_rps.vz, coeff, vx_body, vy_body, vz_body);
+    setF(dt, 0, 0, 0, coeff, vx_body, vy_body, vz_body);
+    //    setF(dt, omega_rps.vx, omega_rps.vy, omega_rps.vz, coeff, vx_body, vy_body, vz_body);
 
     P_priori = (F_mat * P_k * F_mat.transpose()) + Q;
 }
-
 
 /**
  * @brief Update Kalman Gain and state estimate with current sensor data
@@ -338,16 +341,16 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     //     current_vel += (s_dt)*y_k(1, 0);
     //     Eigen::Matrix<float, 9, 1> measured_v = Eigen::Matrix<float, 9, 1>::Zero();
     //     measured_v(0, 0) = current_vel;
-        // measured_v(0,0) = y_k(1) + (dt/2)*y_k(2);
-        // Eigen::Matrix<float, 9, 1> err = Eigen::Matrix<float, 9, 1>::Zero();
-        // err(0, 0) = measured_v(0, 0) - x_k(1, 0);
-        // Wind = Wind_alpha * Wind + (1 - Wind_alpha) * err;
-        // if (Wind.norm() > 15)
-        // {
-        //     Wind(0, 0) = 15.0;
-        //     Wind(1, 0) = 0.0;
-        //     Wind(2, 0) = 0.0;
-        // }
+    // measured_v(0,0) = y_k(1) + (dt/2)*y_k(2);
+    // Eigen::Matrix<float, 9, 1> err = Eigen::Matrix<float, 9, 1>::Zero();
+    // err(0, 0) = measured_v(0, 0) - x_k(1, 0);
+    // Wind = Wind_alpha * Wind + (1 - Wind_alpha) * err;
+    // if (Wind.norm() > 15)
+    // {
+    //     Wind(0, 0) = 15.0;
+    //     Wind(1, 0) = 0.0;
+    //     Wind(2, 0) = 0.0;
+    // }
     // }
 }
 
@@ -519,7 +522,8 @@ void EKF::getThrust(float timestamp, const euler_t &angles, FSMState FSM_state, 
     // Pick which motor thrust curve to use
     const std::map<float, float> *thrust_curve = nullptr;
 
-    if (FSM_state == STATE_FIRST_BOOST){
+    if (FSM_state == STATE_FIRST_BOOST)
+    {
         thrust_curve = &motor_data.at("Booster"); // Booster
     }
     else if (FSM_state == STATE_SECOND_BOOST)

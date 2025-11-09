@@ -91,7 +91,7 @@ echo ""
 
 echo -e "${YELLOW}Step 1: Building code...${NC}"
 if [ -f "build.sh" ]; then
-    ./build.sh
+    sh build.sh
     if [ $? -ne 0 ]; then
         echo -e "${RED}Build failed!${NC}"
         exit 1
