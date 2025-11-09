@@ -357,11 +357,12 @@ def main():
     if len(sys.argv) > 1:
         csv_file = sys.argv[1]
     else:
+        csv_file = "output/results.csv"
         csv_file2 = "output/results.csv"
-        csv_file1 = "output/TeleMega (AL3, EEPROM).csv"
+        # csv_file1 = "output/TeleMega (AL3, EEPROM).csv"
     
-    # plot_ekf_results(csv_file)
-    benchmark_results(csv_file1, csv_file2)
+    plot_ekf_results(csv_file)
+    # benchmark_results(csv_file1, csv_file2)
 
 if __name__ == "__main__":
     main()

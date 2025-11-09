@@ -36,6 +36,8 @@ public:
     void compute_mass(FSMState fsm);
     void compute_kalman_gain();
     void compute_drag_coeffs(float vel_magnitude_ms);
+    void compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot);
+
     void getThrust(float timestamp, const euler_t& angles, FSMState FSM_state, Eigen::Vector3f& thrust_out);
 
     void tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState state);
