@@ -6,35 +6,6 @@ import numpy as np
 import sys
 import os
 
-
-# def plot_telemega_results(csv_file="output/telemega.csv"):
-#     if not os.path.exists(csv_file):
-#         print(f"Error: File {csv_file} not found")
-#         print("Please run the C++ simulation first to generate results")
-#         return
-    
-#     # Get the directory of the CSV file to save plots in the same location
-#     csv_dir = os.path.dirname(os.path.abspath(csv_file))
-#     if not csv_dir:
-#         csv_dir = "."
-    
-#     try:
-#         df = pd.read_csv(csv_file)
-#         print(f"Loaded {len(df)} data points from {csv_file}")
-#     except Exception as e:
-#         print(f"Error reading CSV file: {e}")
-#         return
-    
-#     fig1, axes1 = plt.subplots(3, 3, figsize=(15, 12))
-#     fig1.suptitle('EKF Simulation Results - Standalone Plots', fontsize=16)
-    
-#     fig2, axes2 = plt.subplots(2, 2, figsize=(12, 10))
-#     fig2.suptitle('EKF Simulation Results - Comparison Plots', fontsize=16)
-    
-#     return None
-
-
-
 def benchmark_results(csv_file1 ="output/TeleMega (AL3, EEPROM).csv", csv_file2 = "output/results.csv"):
     
     def exist(file):
@@ -64,80 +35,68 @@ def benchmark_results(csv_file1 ="output/TeleMega (AL3, EEPROM).csv", csv_file2 
         return
     
 
-    # fig1 = plt.figure(figsize=(15, 12))
-    # fig1.suptitle('EKF Simulation Results - Standalone Plots', fontsize=16)
-    
-    # fig2, axes2 = plt.subplots(2, 2, figsize=(12, 10))
-    # fig2.suptitle('EKF Simulation Results - Comparison Plots', fontsize=16)
-    
     time1 = df1['time'] # Telemega Time
     time2 = df2['timestamp'] # ISS EKF Time
 
-      
-    # time_max_accelx = time2[df2['acc_x'].idxmax()] 
-    # print(type(time_max_accelx))
 
-    # for i in range(len(time1)):
-    #     time1[i] += float(time_max_accelx)
-    
-    
-    # fsm_changes = []
-    # used_states_order = []
-    # if 'fsm' in df.columns:
-    #     prev = None
-    #     for i, (t, s) in enumerate(zip(df['time'], df['fsm'])):
-    #         if i == 0:
-    #             prev = s
-    #             fsm_changes.append((t, s))
-    #             if s not in used_states_order:
-    #                 used_states_order.append(s)
-    #         else:
-    #             if s != prev:
-    #                 fsm_changes.append((t, s))
-    #                 if s not in used_states_order:
-    #                     used_states_order.append(s)
-    #                 prev = s
-
-
-
-    # Add 100 to pos_x in EKF results to align with Telemega data
-    df2['pos_x'] += 100
-    df1['altitude'] -= 100
+    # df2['pos_x'] += 100
+    # df1['altitude'] -= 100
 
     # Add 3.5 seconds to time2 in EKF results to align with Telemega data
-    time2 -= 3.5
+    # time2 -= 3.5
+
+    def align_position_data(time1, data1, time2, data2):
+        # Always starts at zero
+        offset1 = data1[0]
+        offset2 = data2[0]
+
+        data1_zero_aligned = data1 - offset1
+        data2_zero_aligned = data2 - offset2
+
+        # find index of max along the columns of data
+        max1_index = data1_zero_aligned.idxmax()
+        max2_index = data2_zero_aligned.idxmax()
+
+        time_diff = time1[max1_index] - time2[max2_index]
+
+        time2_aligned = time2 + time_diff
+
+        return time2_aligned, data1_zero_aligned, data2_zero_aligned
+    
+    
+    time2_aligned, altitude1_aligned, altitude2_aligned = align_position_data(time1, df1['altitude'], time2, df2['pos_x'])
+
 
     fig1, ax = plt.subplots(3, 2, figsize=(15,12))
-    ax[0,0].plot(time1, df1['altitude'], label='Telemega')
+    ax[0,0].plot(time1, altitude1_aligned, label='Telemega')
     ax[0,0].set_title('Position X')
     ax[0,0].set_ylabel('Position (m)')
 
-    ax[0,0].plot(time2, df2['pos_x'], label = 'ISS EKF')
+    ax[0,0].plot(time2_aligned, altitude2_aligned, label = 'ISS EKF')
     ax[0,0].legend()
-    
 
-    # ax[1].plot(time1, df1['accel_y'], label='Telemega')
-    # ax[1].set_title('Acceleration Y')
-    # ax[1].set_ylabel('Position (m)')
-    # ax[1].legend()
+    ax[0,1].plot(time1, df1['accel_x'], label='Telemega')
+    ax[0,1].set_title('Acceleration X')
+    ax[0,1].set_ylabel("Acceleration (m/s^2)")
+
+    ax[0,1].plot(time2_aligned, df2['acc_x'], label = 'ISS EKF')
+    ax[0,1].legend()
+
+    ax[1,1].plot(time1, df1['accel_y'], label = 'Telemega')
+    ax[1,1].set_title('Acceleration Y')
+    ax[1,1].set_ylabel("Acceleration (m/s^2)")
+
+    ax[1,1].plot(time2_aligned, df2['acc_y'], label = 'ISS EKF')
+    ax[1,1].legend()
 
     
-    # ax[2].plot(time1, df1['accel_z'], label='Telemega')
-    # ax[2].set_title('Acceleration Z')
-    # ax[2].set_ylabel('Position (m)')
-    # ax[2].legend()
+    ax[2,1].plot(time1, df1['accel_z'], label = 'Telemega')
+    ax[2,1].set_title('Acceleration Z')
+    ax[2,1].set_ylabel("Acceleration (m/s^2)")
 
-
+    ax[2,1].plot(time2_aligned, df2['acc_z'], label = 'ISS EKF')
+    ax[2,1].legend()
     
-    
-    
-    # plt.plot(time, df['altitude'], 'b-', linewidth=1)
-    # plt.title('Acceleration X ')
-    # plt.ylabel('Position (m)')
-    # plt.grid(True)    
-
-    # plt.tight_layout()
-    # fig1.show()
     plt.show()
 
 
