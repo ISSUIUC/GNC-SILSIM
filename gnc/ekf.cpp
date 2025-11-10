@@ -1,6 +1,7 @@
 #include "ekf.h"
 #include "fsm_states.h" // for sim
-//#include "finite-state-machines/fsm_states.h"
+#include <iostream>
+// #include "finite-state-machines/fsm_states.h"
 
 extern const std::map<float, float> O5500X_data;
 extern const std::map<float, float> M685W_data;
@@ -50,19 +51,9 @@ void EKF::initialize(RocketSystems *args)
             .ay = initial_accelerometer.ay,
             .az = initial_accelerometer.az};
         sum += barometer.altitude;
-
-        // init_accel(0, 0) += -accelerations.ax;
-        // init_accel(1, 0) += accelerations.ay;
-        // init_accel(2, 0) += accelerations.az;
-        //THREAD_SLEEP(100);
     }
 
-    // init_accel(0, 0) /= 30;
-    // init_accel(1, 0) /= 30;
-    // init_accel(2, 0) /= 30;
-
     euler_t euler = orientation.getEuler();
-    // euler.yaw = -euler.yaw;
 
     // set x_k
     x_k.setZero();
@@ -72,36 +63,7 @@ void EKF::initialize(RocketSystems *args)
 
     F_mat.setZero(); // Initialize with zeros
 
-    // Initialize Q from filterpy
-    Q(0, 0) = pow(s_dt, 5) / 20;
-    Q(0, 1) = pow(s_dt, 4) / 8;
-    Q(0, 2) = pow(s_dt, 3) / 6;
-    Q(1, 1) = pow(s_dt, 3) / 3; // fxed
-    Q(1, 2) = pow(s_dt, 2) / 2;
-    Q(2, 2) = s_dt;
-    Q(1, 0) = Q(0, 1);
-    Q(2, 0) = Q(0, 2);
-    Q(2, 1) = Q(1, 2);
-
-    Q(3, 3) = pow(s_dt, 5) / 20;
-    Q(3, 4) = pow(s_dt, 4) / 8;
-    Q(3, 5) = pow(s_dt, 3) / 6;
-    Q(4, 4) = pow(s_dt, 3) / 3; // fixed
-    Q(4, 5) = pow(s_dt, 2) / 2;
-    Q(5, 5) = s_dt;
-    Q(4, 3) = Q(3, 4);
-    Q(5, 3) = Q(3, 5);
-    Q(5, 4) = Q(4, 5);
-
-    Q(6, 6) = pow(s_dt, 5) / 20;
-    Q(6, 7) = pow(s_dt, 4) / 8;
-    Q(6, 8) = pow(s_dt, 3) / 6;
-    Q(7, 7) = pow(s_dt, 3) / 3; // fixed
-    Q(7, 8) = pow(s_dt, 2) / 2;
-    Q(8, 8) = s_dt;
-    Q(7, 6) = Q(6, 7);
-    Q(8, 6) = Q(6, 8);
-    Q(8, 7) = Q(7, 8);
+    setQ(s_dt, spectral_density_);
 
     // set H
     H.setZero();
@@ -109,8 +71,6 @@ void EKF::initialize(RocketSystems *args)
     H(1, 2) = 1;
     H(2, 5) = 1;
     H(3, 8) = 1;
-
-    Q = Q * spectral_density_;
 
     // Wind vector
     // Wind(0, 0) = 0.0; // wind in x direction
@@ -122,33 +82,33 @@ void EKF::initialize(RocketSystems *args)
     P_k.block<3, 3>(3, 3) = Eigen::Matrix3f::Identity() * 1e-2f; // y block
     P_k.block<3, 3>(6, 6) = Eigen::Matrix3f::Identity() * 1e-2f; // z block
 
-    // set
+    // set Measurement Noise Matrix
     R(0, 0) = 1.9;
     R(1, 1) = 1.9;
     R(2, 2) = 1.9;
     R(3, 3) = 1.9;
-
-    // set B (don't care about what's in B since we have no control input)
-    B(2, 0) = -1;
 }
 
-/**
- * @brief Estimates current state of the rocket without current sensor data
- *
- * The priori step of the Kalman filter is used to estimate the current state
- * of the rocket without knowledge of the current sensor data. In other words,
- * it extrapolates the state at time n+1 based on the state at time n.
- */
-
-void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
+void EKF::compute_mass(FSMState fsm)
 {
-    Eigen::Matrix<float, 9, 1> xdot = Eigen::Matrix<float, 9, 1>::Zero();
+    if (fsm == FSMState::STATE_FIRST_BOOST)
+    {
+        curr_mass_kg = mass_full - (mass_full - mass_first_burnout) * stage_timestamp / 2.75;
+    }
+}
 
-    // angular states from sensors
-    Velocity omega_rps = orientation.getAngularVelocity(); // rads per sec
+void EKF::compute_drag_coeffs(float vel_magnitude_ms)
+{
+    float mach = vel_magnitude_ms / a;
+    int index = std::round(mach / 0.04);
+    index = std::clamp(index, 0, (int)AERO_DATA_SIZE - 1);
+    Ca = aero_data[index].CA_power_on;
+}
 
+void EKF::compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot)
+{
     euler_t angles_rad = orientation.getEuler();
-
+    Velocity omega_rps = orientation.getAngularVelocity(); // rads per sec
     // ignore effects of gravity when on pad
     Eigen::Matrix<float, 3, 1> g_global = Eigen::Matrix<float, 3, 1>::Zero();
     if ((fsm > FSMState::STATE_IDLE))
@@ -159,31 +119,8 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
     {
         g_global(0, 0) = 0;
     }
-
-    // mass and height init
-    float curr_mass_kg = mass_sustainer;
-    float curr_height_m = height_sustainer;
-
-    if (fsm < FSMState::STATE_BURNOUT)
-    {
-        curr_mass_kg = mass_full;
-        curr_height_m = height_full;
-    }
-
-    // Mach number // Subtracting wind from velocity
-    // float vel_mag_squared_ms = ((x_k(1, 0) - 1.2 * Wind(0, 0)) * (x_k(1, 0) - 1.2 * Wind(0, 0))) + x_k(4, 0) * x_k(4, 0) + x_k(7, 0) * x_k(7, 0);
-    float vel_mag_squared_ms = ((x_k(1, 0) ) * (x_k(1, 0) )) + x_k(4, 0) * x_k(4, 0) + x_k(7, 0) * x_k(7, 0);
-
+    float vel_mag_squared_ms = ((x_k(1, 0)) * (x_k(1, 0))) + x_k(4, 0) * x_k(4, 0) + x_k(7, 0) * x_k(7, 0);
     float vel_magnitude_ms = pow(vel_mag_squared_ms, 0.5);
-
-    float mach = vel_magnitude_ms / a;
-
-    // approximating C_a (aerodynamic coeff.)
-    int index = std::round(mach / 0.04);
-
-    index = std::clamp(index, 0, (int)AERO_DATA_SIZE - 1);
-
-    Ca = aero_data[index].CA_power_on;
 
     // aerodynamic force
     // Body frame
@@ -209,18 +146,10 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
     float Fty = Ft_body(1, 0);
     float Ftz = Ft_body(2, 0);
 
-    Eigen::Matrix<float, 3, 1> velocities_body;
-    velocities_body << x_k(1, 0), x_k(4, 0), x_k(7, 0);
-
-    GlobalToBody(angles_rad, velocities_body);
-    float vx_body = velocities_body(0, 0);
-    float vy_body = velocities_body(1, 0);
-    float vz_body = velocities_body(2, 0);
-
     Eigen::Matrix<float, 3, 1> v_dot; // we compute everything in the body frame for accelerations, and then convert those accelerations to global frame
     v_dot << ((Fax + Ftx) / curr_mass_kg),
-        ((Fay + Fty) / curr_mass_kg ),
-        ((Faz + Ftz) / curr_mass_kg );
+        ((Fay + Fty) / curr_mass_kg),
+        ((Faz + Ftz) / curr_mass_kg);
 
     BodyToGlobal(angles_rad, v_dot);
 
@@ -232,8 +161,51 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
 
         x_k(7, 0), v_dot(2, 0) + gz,
         0.0;
+}
+/**
+ * @brief Estimates current state of the rocket without current sensor data
+ *
+ * The priori step of the Kalman filter is used to estimate the current state
+ * of the rocket without knowledge of the current sensor data. In other words,
+ * it extrapolates the state at time n+1 based on the state at time n.
+ */
+
+void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
+{
+    Eigen::Matrix<float, 9, 1> xdot = Eigen::Matrix<float, 9, 1>::Zero();
+
+    // angular states from sensors
+    Velocity omega_rps = orientation.getAngularVelocity(); // rads per sec
+
+    euler_t angles_rad = orientation.getEuler();
+
+    // mass and height init
+    float curr_height_m = height_sustainer;
+
+    if (fsm < FSMState::STATE_BURNOUT)
+    {
+        curr_height_m = height_full;
+    }
+    compute_mass(fsm);
+
+    // Mach number // Subtracting wind from velocity
+    // float vel_mag_squared_ms = ((x_k(1, 0) - 1.2 * Wind(0, 0)) * (x_k(1, 0) - 1.2 * Wind(0, 0))) + x_k(4, 0) * x_k(4, 0) + x_k(7, 0) * x_k(7, 0);
+    float vel_mag_squared_ms = ((x_k(1, 0)) * (x_k(1, 0))) + x_k(4, 0) * x_k(4, 0) + x_k(7, 0) * x_k(7, 0);
+
+    float vel_magnitude_ms = pow(vel_mag_squared_ms, 0.5);
+
+    // approximating C_a (aerodynamic coeff.)
+    compute_drag_coeffs(vel_magnitude_ms);
+
+    Eigen::Matrix<float, 3, 1> velocities_body;
+    velocities_body << x_k(1, 0), x_k(4, 0), x_k(7, 0);
+    GlobalToBody(angles_rad, velocities_body);
+    float vx_body = velocities_body(0, 0);
+    float vy_body = velocities_body(1, 0);
+    float vz_body = velocities_body(2, 0);
 
     // priori step
+    compute_x_dot(dt, orientation, fsm, xdot);
     x_priori = (xdot * dt) + x_k;
 
     float coeff = 0;
@@ -242,11 +214,17 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
         coeff = -pi * Ca * (r * r) * rho / curr_mass_kg;
     }
 
-    setF(dt, 0,0,0, coeff, vx_body, vy_body, vz_body);
+    setF(dt, 0, 0, 0, coeff, vx_body, vy_body, vz_body);
 
     P_priori = (F_mat * P_k * F_mat.transpose()) + Q;
 }
 
+void EKF::compute_kalman_gain()
+{
+    Eigen::Matrix<float, 4, 4> S_k = Eigen::Matrix<float, 4, 4>::Zero();
+    S_k = (((H * P_priori * H.transpose()) + R)).inverse();
+    K = (P_priori * H.transpose()) * S_k;
+}
 
 /**
  * @brief Update Kalman Gain and state estimate with current sensor data
@@ -273,17 +251,9 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
         KalmanState kalman_state = (KalmanState){sum / 10.0f, 0, 0, 0, 0, 0, 0, 0, 0};
         setState(kalman_state);
     }
-    // ignore alitiude measurements after apogee
-    else if (FSM_state == FSMState::STATE_APOGEE)
-    {
-        // H(1, 2) = 0;
-    }
 
     // Kalman Gain
-    Eigen::Matrix<float, 4, 4> S_k = Eigen::Matrix<float, 4, 4>::Zero();
-    S_k = (((H * P_priori * H.transpose()) + R)).inverse();
-    Eigen::Matrix<float, 9, 9> identity = Eigen::Matrix<float, 9, 9>::Identity();
-    K = (P_priori * H.transpose()) * S_k;
+    compute_kalman_gain();
 
     // Sensor Measurements
     Eigen::Matrix<float, 3, 1> sensor_accel_global_g = Eigen::Matrix<float, 3, 1>(Eigen::Matrix<float, 3, 1>::Zero());
@@ -316,6 +286,7 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     y_k(0, 0) = barometer.altitude; // meters
 
     // # Posteriori Update
+    Eigen::Matrix<float, 9, 9> identity = Eigen::Matrix<float, 9, 9>::Identity();
     x_k = x_priori + K * (y_k - (H * x_priori));
     P_k = (identity - K * H) * P_priori;
 
@@ -338,16 +309,16 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     //     current_vel += (s_dt)*y_k(1, 0);
     //     Eigen::Matrix<float, 9, 1> measured_v = Eigen::Matrix<float, 9, 1>::Zero();
     //     measured_v(0, 0) = current_vel;
-        // measured_v(0,0) = y_k(1) + (dt/2)*y_k(2);
-        // Eigen::Matrix<float, 9, 1> err = Eigen::Matrix<float, 9, 1>::Zero();
-        // err(0, 0) = measured_v(0, 0) - x_k(1, 0);
-        // Wind = Wind_alpha * Wind + (1 - Wind_alpha) * err;
-        // if (Wind.norm() > 15)
-        // {
-        //     Wind(0, 0) = 15.0;
-        //     Wind(1, 0) = 0.0;
-        //     Wind(2, 0) = 0.0;
-        // }
+    // measured_v(0,0) = y_k(1) + (dt/2)*y_k(2);
+    // Eigen::Matrix<float, 9, 1> err = Eigen::Matrix<float, 9, 1>::Zero();
+    // err(0, 0) = measured_v(0, 0) - x_k(1, 0);
+    // Wind = Wind_alpha * Wind + (1 - Wind_alpha) * err;
+    // if (Wind.norm() > 15)
+    // {
+    //     Wind(0, 0) = 15.0;
+    //     Wind(1, 0) = 0.0;
+    //     Wind(2, 0) = 0.0;
+    // }
     // }
 }
 
@@ -519,7 +490,8 @@ void EKF::getThrust(float timestamp, const euler_t &angles, FSMState FSM_state, 
     // Pick which motor thrust curve to use
     const std::map<float, float> *thrust_curve = nullptr;
 
-    if (FSM_state == STATE_FIRST_BOOST){
+    if (FSM_state == STATE_FIRST_BOOST)
+    {
         thrust_curve = &motor_data.at("Booster"); // Booster
     }
     else if (FSM_state == STATE_SECOND_BOOST)

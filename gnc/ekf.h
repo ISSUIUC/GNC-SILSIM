@@ -33,6 +33,10 @@ public:
 
     KalmanData getState() override;
     void setState(KalmanState state) override;
+    void compute_mass(FSMState fsm);
+    void compute_kalman_gain();
+    void compute_drag_coeffs(float vel_magnitude_ms);
+    void compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot);
 
     void getThrust(float timestamp, const euler_t& angles, FSMState FSM_state, Eigen::Vector3f& thrust_out);
 
@@ -44,12 +48,13 @@ public:
 
 private:
     float s_dt = 0.05f;
-    float spectral_density_ = 0.001f;
+    float spectral_density_ = 13.0f;
     float kalman_apo = 0;
     float Ca = 0;
     float Cn = 0;
     float Wind_alpha = 0.85f;
     float Cp = 0;
+    float curr_mass_kg = mass_full; //(kg) Sustainer + Booster, but value changes over time.
     
     // Eigen::Matrix<float,3,1> gravity = Eigen::Matrix<float,3,1>::Zero();
     KalmanState kalman_state;
