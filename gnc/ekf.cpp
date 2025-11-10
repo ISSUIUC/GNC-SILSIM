@@ -1,7 +1,6 @@
 #include "ekf.h"
 #include "fsm_states.h" // for sim
 #include <iostream>
-// #include "finite-state-machines/fsm_states.h"
 
 extern const std::map<float, float> O5500X_data;
 extern const std::map<float, float> M685W_data;
@@ -87,6 +86,14 @@ void EKF::initialize(RocketSystems *args)
     R(3, 3) = 1.9;
 }
 
+/**
+ * @brief Computes the rockets mass throughout the flight.
+ * 
+ * The following takes the fsm state of the rocket and uses the preconfigured rocket masses to calculate the mass over the rockets trajectory. 
+ * The code is configured so booster only goes through this interpolation once, whereas sustainer goes through it multiple time.
+ * @param fsm: Takes the current FSM state of the rocket. 
+ * @todo Include the sustainer code, and include checks on the code to ensure mass does not become 0.
+ */
 void EKF::compute_mass(FSMState fsm)
 {
     if (fsm == FSMState::STATE_FIRST_BOOST)
@@ -95,6 +102,14 @@ void EKF::compute_mass(FSMState fsm)
     }
 }
 
+/**
+ * @brief Computes the rockets' drag coefficients.
+ * 
+ * The following takes the velocity of the rocket and calculates the drag coefficients, storing them in a global variable.
+
+ * @param vel_magnitude_ms: Current velocity magnitude of the rocket
+ * @todo Include the calculations for the other drag coefficients
+ */
 void EKF::compute_drag_coeffs(float vel_magnitude_ms)
 {
     float mach = vel_magnitude_ms / a;
@@ -103,6 +118,17 @@ void EKF::compute_drag_coeffs(float vel_magnitude_ms)
     Ca = aero_data[index].CA_power_on;
 }
 
+/**
+ * @brief Computes the rockets' change in velocity and acceleration based on its current iteration. 
+ * 
+ * The following takes the rocket's current orientation data and uses that to calculate its x_dot, which is change in velocity and acceleration.
+ * Using thrust data, aerodynamic data, and gravity, the program calculates the changes and returns it in the global frame.
+
+ * @param dt: Current change in time
+ * @param orientation, fsm: Current rocket data used.
+ * @param xdot: Reference to the vector where the final xdot is stored,
+ * @todo Fix reference frames, include better dynamics. 
+ */
 void EKF::compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot)
 {
     euler_t angles_rad = orientation.getEuler();
@@ -209,22 +235,33 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
     P_priori = (F_mat * P_k * F_mat.transpose()) + Q;
 }
 
+
+/**
+ * @brief Update Kalman Gain at aech timestep.
+ *
+ * After receiving new sensor data, the Kalman filter updates the the Kalman Gain.
+ * The Kalman gain can be considered as a measure of how uncertain the new sensor data is. 
+ */
 void EKF::compute_kalman_gain()
 {
     Eigen::Matrix<float, 4, 4> S_k = Eigen::Matrix<float, 4, 4>::Zero();
     S_k = (((H * P_priori * H.transpose()) + R)).inverse();
     K = (P_priori * H.transpose()) * S_k;
 }
-
 /**
- * @brief Update Kalman Gain and state estimate with current sensor data
+ * @todo
+ */
+void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
+{
+}
+/**
+ * @brief Update state estimate with current sensor data
  *
- * After receiving new sensor data, the Kalman filter updates the state estimate
- * and Kalman gain. The Kalman gain can be considered as a measure of how uncertain
- * the new sensor data is. After updating the gain, the state estimate is updated.
+ * After receiving new sensor data, the Kalman filter updates the state estimate.
+ * After updating the gain, the state estimate is updated.
  *
  */
-void EKF::update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState FSM_state)
+void EKF::update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState FSM_state, GPS &gps)
 {
     // if on pad -> take last 10 barometer measurements for init state
     if (FSM_state == FSMState::STATE_IDLE)
@@ -322,8 +359,14 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
  * @param &orientation Current orientation
  * @param current_state Current FSM_state
  */
-void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState FSM_state,GPS &gps)
+void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState FSM_state, GPS &gps)
 {
+    if (FSM_state == FSMState::STATE_IDLE)
+    {
+        gps_latitude_original = gps.latitude;
+        gps_longitude_original = gps.longitude;
+    }
+
     if (FSM_state >= FSMState::STATE_IDLE) //
     {
         if (FSM_state != last_fsm)
@@ -335,7 +378,7 @@ void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration accelerati
         // setF(dt, orientation.roll, orientation.pitch, orientation.yaw);
         setQ(dt, sd);
         priori(dt, orientation, FSM_state);
-        update(barometer, acceleration, orientation, FSM_state);
+        update(barometer, acceleration, orientation, FSM_state, gps);
     }
 }
 
