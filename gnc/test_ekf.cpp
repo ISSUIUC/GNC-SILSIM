@@ -101,6 +101,12 @@ public:
                 }
                 row.timestamp = toFloatOr(getValue(values, "timestamp"), row.timestamp);
                 
+                row.gps.latitude = toFloatOr(getValue(values,"gps.latitude"), row.gps.latitude);
+                row.gps.longitude = toFloatOr(getValue(values,"gps.longitude"), row.gps.longitude);
+                row.gps.altitude = toFloatOr(getValue(values,"gps.altitude"), row.gps.altitude);
+                row.gps.fix_type = toFloatOr(getValue(values,"gps.fix_type"), row.gps.fix_type);
+                row.gps.time = toFloatOr(getValue(values,"gps.time"), row.gps.time);
+
                 row.lowg.ax = toFloatOr(getValue(values, "lowg.ax"), row.lowg.ax);
                 row.lowg.ay = toFloatOr(getValue(values, "lowg.ay"), row.lowg.ay);
                 row.lowg.az = toFloatOr(getValue(values, "lowg.az"), row.lowg.az);
@@ -253,8 +259,9 @@ public:
             Acceleration current_accel = {data.highg.ax, data.highg.ay, data.highg.az};
             Orientation current_orientation = data.orientation;
             FSMState current_fsm = data.fsm;
+            GPS current_gps = data.gps;
             
-            ekf.tick(dt, 13.0f, current_barom, current_accel, current_orientation, current_fsm);
+            ekf.tick(dt, 13.0f, current_barom, current_accel, current_orientation, current_fsm,current_gps);
             
             KalmanData current_state = ekf.getState();
             results.push_back(current_state);
@@ -330,6 +337,7 @@ private:
         rocket_systems.rocket_data.high_g.push(data.highg);
         rocket_systems.rocket_data.low_g.push(data.lowg);
         rocket_systems.rocket_data.fsm_state.push(data.fsm);
+        rocket_systems.rocket_data.gps.push(data.gps);
     }
 };
 

@@ -28,8 +28,6 @@ void EKF::priori() {};
  * estimate. This process is significantly faster than allowing the state as
  * letting the filter to converge to the correct state can take up to 3 min.
  * This specific process was used because the barometric altitude will
- * letting the filter to converge to the correct state can take up to 3 min.
- * This specific process was used because the barometric altitude will
  * change depending on the weather and thus, the initial state estimate
  * cannot be hard coded. A GPS altitude may be used instead but due to GPS
  * losses during high speed/high altitude flight, it is inadvisable with the
@@ -207,15 +205,7 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
     // priori step
     compute_x_dot(dt, orientation, fsm, xdot);
     x_priori = (xdot * dt) + x_k;
-
-    float coeff = 0;
-    if ((fsm > FSMState::STATE_IDLE))
-    {
-        coeff = -pi * Ca * (r * r) * rho / curr_mass_kg;
-    }
-
-    setF(dt, 0, 0, 0, coeff, vx_body, vy_body, vz_body);
-
+    setF(dt, 0, 0, 0, fsm, vx_body, vy_body, vz_body);
     P_priori = (F_mat * P_k * F_mat.transpose()) + Q;
 }
 
@@ -332,7 +322,7 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
  * @param &orientation Current orientation
  * @param current_state Current FSM_state
  */
-void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState FSM_state)
+void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState FSM_state,GPS &gps)
 {
     if (FSM_state >= FSMState::STATE_IDLE) //
     {
@@ -430,9 +420,15 @@ void EKF::
  * by how the states change over time and also depends on the
  * current state of the rocket.
  */
-void EKF::setF(float dt, float w_x, float w_y, float w_z, float coeff, float v_x, float v_y, float v_z)
+void EKF::setF(float dt, float w_x, float w_y, float w_z, FSMState fsm, float v_x, float v_y, float v_z)
 
 {
+    float coeff = 0;
+    if ((fsm > FSMState::STATE_IDLE))
+    {
+        coeff = -pi * Ca * (r * r) * rho / curr_mass_kg;
+    }
+
     F_mat.setIdentity(); // start from identity
 
     // For x
