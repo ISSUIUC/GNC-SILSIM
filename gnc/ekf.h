@@ -44,6 +44,7 @@ public:
     void compute_kalman_gain();
     void compute_gps_inputs(GPS &gps, FSMState fsm);
     void reference_GPS(GPS &gps, FSMState fsm); 
+    std::vector<float> ECEF(float lat, float lon, float alt);
 
     void compute_drag_coeffs(float vel_magnitude_ms);
     void compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot);

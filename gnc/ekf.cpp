@@ -255,6 +255,7 @@ void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration accelerati
         setQ(dt, sd);
         priori(dt, orientation, FSM_state);
         update(barometer, acceleration, orientation, FSM_state, gps);
+        compute_gps_inputs(gps, FSM_state); // testing GPS inputs
     }
 }
 
@@ -596,12 +597,43 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
    *  */  
     reference_GPS(gps, fsm); 
 
-    float lat = gps.latitude;
-    float lon = gps.longitude;
+    float lat = gps.latitude/1e7; // deviding by 1e7 to convert from int to float
+    float lon = gps.longitude/1e7;
     float alt = gps.altitude;
-    
+
 
     // Convert GPS to ECEF
+
+    std::vector<float> rocket_cords = EKF::ECEF(lat, lon, alt);
+    std::vector<float> reference_cord = EKF::ECEF(gps_latitude_original, gps_longitude_original, 0);
+
+    double dx = rocket_cords[0] - reference_cord[0];
+    double dy = rocket_cords[1] - reference_cord[1];
+    double dz = rocket_cords[2] - reference_cord[2];
+
+    
+    
+    float east  = -std::sin(gps_longitude_original) * dx + std::cos(gps_longitude_original) * dy;
+    float north = -std::sin(gps_latitude_original) * std::cos(gps_longitude_original) * dx
+            - std::sin(gps_latitude_original) * std::sin(gps_longitude_original) * dy
+            + std::cos(gps_latitude_original) * dz;
+    float up    = std::cos(gps_latitude_original) * std::cos(gps_longitude_original) * dx
+            + std::cos(gps_latitude_original) * std::sin(gps_longitude_original) * dy
+            + std::sin(gps_latitude_original) * dz;
+    
+
+
+    // Update Kalman filter state CHECK THIS ORIENTATION ... NOT SURE IF THIS IS RIGHT
+    x_k(3, 0) = east;
+    //x_k(3, 0) = north;
+    x_k(6, 0) = up;
+    
+
+}
+
+
+std::vector<float> EKF::ECEF (float lat, float lon, float alt)
+{
     lat *= M_PI / 180.0;
     lon *= M_PI / 180.0;
     double N = A / std::sqrt(1 - E_SQ * std::sin(lat) * std::sin(lat)); // Radius of curvature in the prime vertical
@@ -609,12 +641,9 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     float x = (N + alt) * std::cos(lat) * std::cos(lon);
     float y = (N + alt) * std::cos(lat) * std::sin(lon);
     float z = ((1 - E_SQ) * N + alt) * std::sin(lat); // Semi-minor axis of Earth in meters
-    
-    
 
+    return {x, y, z};
 }
-
-
 
 
 void EKF::reference_GPS(GPS &gps, FSMState fsm)
@@ -626,8 +655,8 @@ void EKF::reference_GPS(GPS &gps, FSMState fsm)
 
     if (fsm == FSMState::STATE_IDLE)
     {
-        gps_latitude_original = gps.latitude;
-        gps_longitude_original = gps.longitude;
+        gps_latitude_original = gps.latitude/1e7;
+        gps_longitude_original = gps.longitude/1e7;
     }
     
     
