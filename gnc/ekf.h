@@ -13,6 +13,13 @@
 #define NUM_SENSOR_INPUTS 4
 #define ALTITUDE_BUFFER_SIZE 10
 
+// Used in ekf.cpp for ECEF and ENU conversions
+#define A 6378137.0                         // Equatorial radius
+#define F (1.0 / 298.257223563)             // Flattening factor
+#define B (A * (1 - F))                     // Polar radius
+#define E_SQ ((A * A - B * B) / (A * A))    // Eccentricity squared
+
+
 // Number of entries for aerodynamic data table
 #define AERO_DATA_SIZE (sizeof(aero_data) / sizeof(aero_data[0]))
 
@@ -21,7 +28,7 @@ class EKF : public KalmanFilter<NUM_STATES, NUM_SENSOR_INPUTS>
 public:
     EKF();
     void initialize(RocketSystems* args) override;
-    void priori();
+    // void priori();
     void priori(float dt, Orientation &orientation, FSMState fsm); 
     void update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState state, GPS &gps) override;
 
@@ -36,6 +43,8 @@ public:
     void compute_mass(FSMState fsm);
     void compute_kalman_gain();
     void compute_gps_inputs(GPS &gps, FSMState fsm);
+    void reference_GPS(GPS &gps, FSMState fsm); 
+    std::vector<float> ECEF(float lat, float lon, float alt);
 
     void compute_drag_coeffs(float vel_magnitude_ms);
     void compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot);
@@ -57,8 +66,8 @@ private:
     float Wind_alpha = 0.85f;
     float Cp = 0;
     float curr_mass_kg = mass_full; //(kg) Sustainer + Booster, but value changes over time.
-    float gps_latitude_original = 0;
-    float gps_longitude_original = 0;
+    float gps_latitude_original;
+    float gps_longitude_original;
 
     // Eigen::Matrix<float,3,1> gravity = Eigen::Matrix<float,3,1>::Zero();
     KalmanState kalman_state;
