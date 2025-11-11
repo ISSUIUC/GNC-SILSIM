@@ -11,10 +11,10 @@ EKF::EKF() : KalmanFilter()
     state = KalmanData();
 }
 
-/**
- * THIS IS A PLACEHOLDER FUNCTION SO WE CAN ABSTRACT FROM `kalman_filter.h`
- */
-void EKF::priori() {};
+// /**
+//  * THIS IS A PLACEHOLDER FUNCTION SO WE CAN ABSTRACT FROM `kalman_filter.h`
+//  */
+// void EKF::priori() {};
 
 /**
  * @brief Sets altitude by averaging 30 barometer measurements taken 100 ms
@@ -241,11 +241,7 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
  */
 void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState FSM_state, GPS &gps)
 {
-    if (FSM_state == FSMState::STATE_IDLE)
-    {
-        gps_latitude_original = gps.latitude;
-        gps_longitude_original = gps.longitude;
-    }
+   
 
     if (FSM_state >= FSMState::STATE_IDLE) //
     {
@@ -573,7 +569,68 @@ void EKF::compute_kalman_gain()
  */
 void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
 {
+  /**
+   * struct GPS {
+    float latitude;
+    float longitude;
+    float altitude;
+    float speed;
+    int fix_type;
+    float time;
+};
+   * 
 
+
+   lat, long, alt = GPS
+    lat = np.radians(lat)
+    long = np.radians(long)
+
+    e2 = (a**2 - b**2) / a**2                   # Eccentricity squared
+    N = a / np.sqrt(1 - e2 * np.sin(lat)**2)    # Prime vertical radius of curvature
+
+    x = (N + alt) * np.cos(lat) * np.cos(long)
+    y = (N + alt) * np.cos(lat) * np.sin(long)
+    z = ((1 - e2) * N + alt) * np.sin(lat)
+
+    return np.array([x, y, z])
+   *  */  
+    reference_GPS(gps, fsm); 
+
+    float lat = gps.latitude;
+    float lon = gps.longitude;
+    float alt = gps.altitude;
+    
+
+    // Convert GPS to ECEF
+    lat *= M_PI / 180.0;
+    lon *= M_PI / 180.0;
+    double N = A / std::sqrt(1 - E_SQ * std::sin(lat) * std::sin(lat)); // Radius of curvature in the prime vertical
+
+    float x = (N + alt) * std::cos(lat) * std::cos(lon);
+    float y = (N + alt) * std::cos(lat) * std::sin(lon);
+    float z = ((1 - E_SQ) * N + alt) * std::sin(lat); // Semi-minor axis of Earth in meters
+    
+    
+
+}
+
+
+
+
+void EKF::reference_GPS(GPS &gps, FSMState fsm)
+{
+    if (gps.latitude == 0 || gps.longitude == 0)
+    {
+        return; // No GPS fix, skip reference update
+    }
+
+    if (fsm == FSMState::STATE_IDLE)
+    {
+        gps_latitude_original = gps.latitude;
+        gps_longitude_original = gps.longitude;
+    }
+    
+    
 }
 
 
