@@ -28,4 +28,4 @@ Finally, to create the graphs, run
 `python3 ./plotter/plot_results.py`
 
 ## Automated
-Alternatively, if you run ./automated.bat from the root of the folder, the program will automatically compile and run the code for you, generating all the graphs. 
+Alternatively, if you run ./automated.bat from the root of the folder, the program will automatically compile and run the code for you, generating all the graphs. The input data files can be changes in the file.

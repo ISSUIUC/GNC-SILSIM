@@ -2,6 +2,12 @@
 #include "fsm_states.h" // for sim
 #include <iostream>
 
+/**
+ * The following program is the University of Illinois' Extended Kalman Filter, utilized for state estimation of
+ * our single and multistage rockets. The program was developed since 2023 and had its first successful run (Booster) on LUNA, October 2025.
+ *
+ * 2025-2026 GNC EKF Team: Divij Garg (Senior), Shishir Bhatta (Senior), Keshav Balaji (Senior), 
+ */
 extern const std::map<float, float> O5500X_data;
 extern const std::map<float, float> M685W_data;
 extern const std::map<std::string, std::map<float, float>> motor_data;
@@ -449,13 +455,12 @@ void EKF::getThrust(float timestamp, const euler_t &angles, FSMState FSM_state, 
     // BodyToGlobal(angles, thrust_out);
 }
 
-
 /**
  * @brief Computes the rockets mass throughout the flight.
- * 
- * The following takes the fsm state of the rocket and uses the preconfigured rocket masses to calculate the mass over the rockets trajectory. 
+ *
+ * The following takes the fsm state of the rocket and uses the preconfigured rocket masses to calculate the mass over the rockets trajectory.
  * The code is configured so booster only goes through this interpolation once, whereas sustainer goes through it multiple time.
- * @param fsm: Takes the current FSM state of the rocket. 
+ * @param fsm: Takes the current FSM state of the rocket.
  * @todo Include the sustainer code, and include checks on the code to ensure mass does not become 0.
  */
 void EKF::compute_mass(FSMState fsm)
@@ -465,13 +470,13 @@ void EKF::compute_mass(FSMState fsm)
         curr_mass_kg = mass_full - (mass_full - mass_first_burnout) * stage_timestamp / 2.75;
     }
     /**
-     * @todo add the sustainer code. 
+     * @todo add the sustainer code.
      */
 }
 
 /**
  * @brief Computes the rockets' drag coefficients.
- * 
+ *
  * The following takes the velocity of the rocket and calculates the drag coefficients, storing them in a global variable.
 
  * @param vel_magnitude_ms: Current velocity magnitude of the rocket
@@ -486,15 +491,15 @@ void EKF::compute_drag_coeffs(float vel_magnitude_ms)
 }
 
 /**
- * @brief Computes the rockets' change in velocity and acceleration based on its current iteration. 
- * 
+ * @brief Computes the rockets' change in velocity and acceleration based on its current iteration.
+ *
  * The following takes the rocket's current orientation data and uses that to calculate its x_dot, which is change in velocity and acceleration.
  * Using thrust data, aerodynamic data, and gravity, the program calculates the changes and returns it in the global frame.
 
  * @param dt: Current change in time
  * @param orientation, fsm: Current rocket data used.
  * @param xdot: Reference to the vector where the final xdot is stored,
- * @todo Fix reference frames, include better dynamics. 
+ * @todo Fix reference frames, include better dynamics.
  */
 void EKF::compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot)
 {
@@ -554,12 +559,11 @@ void EKF::compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen:
         0.0;
 }
 
-
 /**
  * @brief Update Kalman Gain at aech timestep.
  *
  * After receiving new sensor data, the Kalman filter updates the the Kalman Gain.
- * The Kalman gain can be considered as a measure of how uncertain the new sensor data is. 
+ * The Kalman gain can be considered as a measure of how uncertain the new sensor data is.
  */
 void EKF::compute_kalman_gain()
 {
@@ -568,13 +572,11 @@ void EKF::compute_kalman_gain()
     K = (P_priori * H.transpose()) * S_k;
 }
 /**
- * @todo The general idea is that we store the initial gps coords, 
- * and then we update the y,z positions as that data arrives. 
+ * @todo The general idea is that we store the initial gps coords,
+ * and then we update the y,z positions as that data arrives.
  */
 void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
 {
-
 }
-
 
 EKF ekf;
