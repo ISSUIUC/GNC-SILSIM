@@ -276,7 +276,7 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     // ignore alitiude measurements after apogee
     else if (FSM_state == FSMState::STATE_APOGEE)
     {
-        H(1, 2) = 0;
+       // H(1, 2) = 0;
     }
 
     // Kalman Gain
@@ -289,7 +289,7 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     Eigen::Matrix<float, 3, 1> sensor_accel_global_g = Eigen::Matrix<float, 3, 1>(Eigen::Matrix<float, 3, 1>::Zero());
 
     // accouting for sensor bias and coordinate frame transforms
-    (sensor_accel_global_g)(0, 0) = -acceleration.ax + 0.045;
+    (sensor_accel_global_g)(0, 0) = acceleration.ax + 0.045;
     (sensor_accel_global_g)(1, 0) = acceleration.ay - 0.065;
     (sensor_accel_global_g)(2, 0) = acceleration.az - 0.06;
 
