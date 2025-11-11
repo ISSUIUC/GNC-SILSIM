@@ -604,6 +604,9 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     float lat = gps.latitude/1e7; // deviding by 1e7 to convert from int to float
     float lon = gps.longitude/1e7;
     float alt = gps.altitude;
+    if(lat == gps_latitude_last && lon == gps_longitude_last){
+        return;
+    }
 
 
     // Convert GPS to ECEF
@@ -649,6 +652,8 @@ void EKF::reference_GPS(GPS &gps, FSMState fsm)
     {
         gps_latitude_original = gps.latitude/1e7;
         gps_longitude_original = gps.longitude/1e7;
+        gps_latitude_last = gps_latitude_original;
+        gps_longitude_last = gps_longitude_original;
     }
     
     
