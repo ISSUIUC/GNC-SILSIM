@@ -13,12 +13,6 @@
 #define NUM_SENSOR_INPUTS 4
 #define ALTITUDE_BUFFER_SIZE 10
 
-// Used in ekf.cpp for ECEF and ENU conversions
-#define A 6378137.0                         // Equatorial radius
-#define F (1.0 / 298.257223563)             // Flattening factor
-#define B (A * (1 - F))                     // Polar radius
-#define E_SQ ((A * A - B * B) / (A * A))    // Eccentricity squared
-
 
 // Number of entries for aerodynamic data table
 #define AERO_DATA_SIZE (sizeof(aero_data) / sizeof(aero_data[0]))
@@ -44,7 +38,7 @@ public:
     void compute_kalman_gain();
     void compute_gps_inputs(GPS &gps, FSMState fsm);
     void reference_GPS(GPS &gps, FSMState fsm); 
-    std::vector<float> ECEF(float lat, float lon, float alt);
+    // std::vector<float> ECEF(float lat, float lon, float alt);
 
     void compute_drag_coeffs(float vel_magnitude_ms);
     void compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot);

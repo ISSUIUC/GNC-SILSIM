@@ -1,6 +1,13 @@
 #include <Eigen/Eigen>
 /**************************** ROTATION FUNCTIONS ****************************/
 
+
+// Used in ekf.cpp for ECEF and ENU conversions
+#define A 6378137.0                         // Equatorial radius
+#define F (1.0 / 298.257223563)             // Flattening factor
+#define B (A * (1 - F))                     // Polar radius
+#define E_SQ ((A * A - B * B) / (A * A))    // Eccentricity squared
+#define pi 3.1415
 /**
  * @brief Converts a vector in the body frame to the global frame
  *
@@ -72,4 +79,18 @@ yaw << 1., 0., 0.,
 
     global_vec = (R_zup_to_xup * rotation_matrix).transpose() * global_vec;
 
+}
+
+
+inline std::vector<float> ECEF (float lat, float lon, float alt)
+{
+    lat *= pi / 180.0;
+    lon *= pi / 180.0;
+    double N = A / std::sqrt(1 - E_SQ * std::sin(lat) * std::sin(lat)); // Radius of curvature in the prime vertical
+
+    float x = (N + alt) * std::cos(lat) * std::cos(lon);
+    float y = (N + alt) * std::cos(lat) * std::sin(lon);
+    float z = ((1 - E_SQ) * N + alt) * std::sin(lat); // Semi-minor axis of Earth in meters
+
+    return {x, y, z};
 }

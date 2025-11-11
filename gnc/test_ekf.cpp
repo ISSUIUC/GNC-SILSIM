@@ -245,11 +245,11 @@ public:
         for (size_t i = 0; i < flight_data.size(); i++) {
             const FlightData& data = flight_data[i];
             
-            if (data.fsm == stop_state) {
-                std::cout << "Reached " << fsmToString(stop_state) << " at time " << (data.timestamp - start_time) / 1000.0f << "s" << std::endl;
-                std::cout << "Stopping simulation at data point " << i << std::endl;
-                break;
-            }
+            // if (data.fsm == stop_state) {
+            //     std::cout << "Reached " << fsmToString(stop_state) << " at time " << (data.timestamp - start_time) / 1000.0f << "s" << std::endl;
+            //     std::cout << "Stopping simulation at data point " << i << std::endl;
+            //     break;
+            // }
             
             float dt = (data.timestamp - last_timestamp) / 1000.0f;
             if (dt < 0 || dt > 1.0f) dt = 0.05f;

@@ -608,8 +608,8 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
 
     // Convert GPS to ECEF
 
-    std::vector<float> rocket_cords = EKF::ECEF(lat, lon, alt);
-    std::vector<float> reference_cord = EKF::ECEF(gps_latitude_original, gps_longitude_original, 0);
+    std::vector<float> rocket_cords = ECEF(lat, lon, alt);
+    std::vector<float> reference_cord = ECEF(gps_latitude_original, gps_longitude_original, 0);
 
     double dx = rocket_cords[0] - reference_cord[0];
     double dy = rocket_cords[1] - reference_cord[1];
@@ -636,18 +636,6 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
 }
 
 
-std::vector<float> EKF::ECEF (float lat, float lon, float alt)
-{
-    lat *= M_PI / 180.0;
-    lon *= M_PI / 180.0;
-    double N = A / std::sqrt(1 - E_SQ * std::sin(lat) * std::sin(lat)); // Radius of curvature in the prime vertical
-
-    float x = (N + alt) * std::cos(lat) * std::cos(lon);
-    float y = (N + alt) * std::cos(lat) * std::sin(lon);
-    float z = ((1 - E_SQ) * N + alt) * std::sin(lat); // Semi-minor axis of Earth in meters
-
-    return {x, y, z};
-}
 
 
 void EKF::reference_GPS(GPS &gps, FSMState fsm)

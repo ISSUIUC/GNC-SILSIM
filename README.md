@@ -1,7 +1,7 @@
 # Overview
 The program is the Illinois Space Society's Guidance, Navigation, and Contol Software-in-the-Loop simulation. Through this program, the GNC team is able to test its in-flight implementation of the Extended Kalman Filter. The EKF is stored in the GNC folder and is implemented in C++. 
 
-The Windows branch has been shown to work for Windows. However, if desired, there is a Mac branch that may work for MacOS.
+This branch should work for both windows and mac. 
 
 ## Getting Started
 To start, make sure you have a C++ compiler installed with a minimum version of 17. Otherwise, clamp will not work. Make sure you have all the requirements installed as well. Create a data folder in root and save the data files there, Ex: "./data/MIDAS_Booster.csv". Then, create an output folder in root.
