@@ -62,6 +62,8 @@ private:
     float curr_mass_kg = mass_full; //(kg) Sustainer + Booster, but value changes over time.
     float gps_latitude_original;
     float gps_longitude_original;
+    float gps_latitude_last; //we don't want to update gps if it's the same as the previously updated value.
+    float gps_longitude_last;//we don't want to update gps if it's the same as the previously updated value.
 
     // Eigen::Matrix<float,3,1> gravity = Eigen::Matrix<float,3,1>::Zero();
     KalmanState kalman_state;
