@@ -9,7 +9,9 @@ To start, make sure you have a C++ compiler installed with a minimum version of 
 ## Creating virtual env (optional)
 
 python3 -m venv venv
+
 source ./venv/bin/activate
+
 pip install -r requirements.txt
 
 ## Commands (in order)
@@ -44,17 +46,17 @@ chmod +x [path to automated.sh]
 
 Example Use
 
-# Use defaults
+Use defaults
 ./automated.sh
 
-# Specify custom input/output files
+Specify custom input/output files
 ./automated.sh -i data/my_file.csv -o output/my_results.csv
 
-# Stop at a specific state
+Stop at a specific state
 ./automated.sh -s STATE_COAST
 
-# Skip plotting
+Skip plotting
 ./automated.sh --no-plot
 
-# Combine options
+Combine options
 ./automated.sh -i data/file.csv -s STATE_COAST --interactive
