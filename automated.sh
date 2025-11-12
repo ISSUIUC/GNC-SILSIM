@@ -12,17 +12,36 @@ echo "------------------------------------------------------------"
 echo "Step 1: Building code..."
 echo "------------------------------------------------------------"
 
-# Check if build.sh exists and use it, otherwise compile directly
-if [ -f "mac_files/build.sh" ]; then
-    ./mac_files/build.sh
-    if [ $? -ne 0 ]; then
-        echo "[ERROR] Build failed. Exiting."
-        exit 1
-    fi
-else
-    echo "[ERROR] mac_files/build.sh not found. Exiting."
+# Check for Eigen3
+if ! pkg-config --exists eigen3; then
+    echo "[ERROR] Eigen3 not found. Please install Eigen3:"
+    echo "  macOS: brew install eigen"
+    echo "  Ubuntu: sudo apt-get install libeigen3-dev"
+    echo "  Or download from: https://eigen.tuxfamily.org/"
     exit 1
 fi
+
+EIGEN_INCLUDE=$(pkg-config --cflags eigen3 | sed 's/-I//')
+
+echo "Compiling with Eigen at: $EIGEN_INCLUDE"
+
+# Create simulation directory if it doesn't exist
+mkdir -p simulation
+
+g++ -std=c++17 -O2 -Wall -Wextra \
+    -I"$EIGEN_INCLUDE" \
+    -I. \
+    -Ignc \
+    gnc/test_ekf.cpp \
+    gnc/ekf.cpp \
+    -o simulation/test_ekf
+
+if [ $? -ne 0 ]; then
+    echo "[ERROR] Build failed. Exiting."
+    exit 1
+fi
+
+echo "Build successful!"
 
 echo ""
 echo "------------------------------------------------------------"
@@ -43,14 +62,14 @@ if [ ! -f "$DATA_FILE" ]; then
     exit 1
 fi
 
-if [ -f "./gnc/test_ekf" ]; then
+if [ -f "./simulation/test_ekf" ]; then
     ./simulation/test_ekf "$DATA_FILE" "$OUTPUT_FILE"
     if [ $? -ne 0 ]; then
         echo "[ERROR] Failed to run EKF executable."
         exit 1
     fi
 else
-    echo "[ERROR] gnc/test_ekf executable not found!"
+    echo "[ERROR] simulation/test_ekf executable not found!"
     exit 1
 fi
 
