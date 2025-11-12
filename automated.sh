@@ -1,6 +1,12 @@
 #!/bin/bash
 
-set -e
+# ============================================================
+#  EKF Automation Script for Mac/Linux Machines
+#  Compiles, runs, and plots EKF results automatically
+#  Required to run from the root of the GNC-SILSIM
+# ============================================================
+
+set -e  # Exit on error
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -39,8 +45,8 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
-            echo "  -i, --input FILE     Input CSV file (default: MIDAS Sustainer (Trimmed CSV).csv)"
-            echo "  -o, --output FILE    Output CSV file (default: results.csv)"
+            echo "  -i, --input FILE     Input CSV file (default: data/MIDAS Trimmed (AL2, CSV).csv)"
+            echo "  -o, --output FILE    Output CSV file (default: output/results.csv)"
             echo "  -s, --stop-state     FSM state to stop simulation at (default: STATE_LANDED)"
             echo "  --interactive        Use interactive plotting (zoom/pan/select)"
             echo "  --no-plot           Skip plotting results"
@@ -63,7 +69,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}    EKF Flight Data Simulator Runner    ${NC}"
+echo -e "${BLUE}    EKF Automation Script               ${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
@@ -74,10 +80,6 @@ if [ ! -f "$INPUT_FILE" ]; then
     echo -e "${RED}Error: Input file '$INPUT_FILE' not found!${NC}"
     echo "Available CSV files in data/ directory:"
     ls -la data/*.csv 2>/dev/null || echo "No CSV files found in data/ directory"
-    echo ""
-    echo "Please copy your CSV files to the data/ directory:"
-    echo "  mkdir -p data output"
-    echo "  cp your_flight_data.csv data/"
     exit 1
 fi
 
@@ -90,37 +92,56 @@ echo "  Interactive: $INTERACTIVE_PLOT"
 echo ""
 
 echo -e "${YELLOW}Step 1: Building code...${NC}"
-if [ -f "build.sh" ]; then
-    ./build.sh
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}Build failed!${NC}"
-        exit 1
-    fi
-    echo -e "${GREEN}Build completed successfully!${NC}"
-else
-    echo -e "${RED}Error: build.sh not found!${NC}"
+
+# Check for Eigen3
+if ! pkg-config --exists eigen3; then
+    echo -e "${RED}[ERROR] Eigen3 not found. Please install Eigen3:${NC}"
+    echo "  macOS: brew install eigen"
+    echo "  Ubuntu: sudo apt-get install libeigen3-dev"
+    echo "  Or download from: https://eigen.tuxfamily.org/"
     exit 1
 fi
-echo ""
 
-echo -e "${YELLOW}Running KF simulation...${NC}"
-if [ -f "./simulation/test_ekf" ]; then
-    ./simulation/test_ekf "$INPUT_FILE" "$OUTPUT_FILE" "$STOP_STATE"
+EIGEN_INCLUDE=$(pkg-config --cflags eigen3 | sed 's/-I//')
+
+echo "Compiling with Eigen at: $EIGEN_INCLUDE"
+
+g++ -std=c++17 -O2 -Wall -Wextra \
+    -I"$EIGEN_INCLUDE" \
+    -I. \
+    -Ignc \
+    gnc/test_ekf.cpp \
+    gnc/ekf.cpp \
+    -o gnc/test_ekf
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}[ERROR] Build failed. Exiting.${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}Build successful!${NC}"
+
+echo ""
+echo -e "${YELLOW}Step 2: Running KF simulation...${NC}"
+
+if [ -f "./gnc/test_ekf" ]; then
+    ./gnc/test_ekf "$INPUT_FILE" "$OUTPUT_FILE" "$STOP_STATE"
     if [ $? -ne 0 ]; then
-        echo -e "${RED}Simulation failed!${NC}"
+        echo -e "${RED}[ERROR] Simulation failed!${NC}"
         exit 1
     fi
     echo -e "${GREEN}Simulation completed successfully!${NC}"
     echo "Results saved to: $OUTPUT_FILE"
 else
-    echo -e "${RED}Error: simulation/test_ekf executable not found!${NC}"
+    echo -e "${RED}[ERROR] gnc/test_ekf executable not found!${NC}"
     echo "Make sure the build completed successfully."
     exit 1
 fi
+
 echo ""
 
 if [ "$PLOT_RESULTS" = true ]; then
-    echo -e "${YELLOW}Plotting results...${NC}"
+    echo -e "${YELLOW}Step 3: Plotting results...${NC}"
     if [ "$INTERACTIVE_PLOT" = true ]; then
         if [ -f "plotter/plot_interactive.py" ]; then
             echo -e "${BLUE}Launching interactive plot...${NC}"
@@ -153,8 +174,8 @@ if [ "$PLOT_RESULTS" = true ]; then
 else
     echo -e "${YELLOW}Step 3: Skipping plots (--no-plot specified)${NC}"
 fi
-echo ""
 
+echo ""
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}           SIMULATION COMPLETE           ${NC}"
 echo -e "${GREEN}========================================${NC}"
@@ -169,9 +190,5 @@ if [ "$PLOT_RESULTS" = true ]; then
 fi
 
 echo ""
-echo -e "${BLUE}Next steps:${NC}"
-echo "  • View results: cat $OUTPUT_FILE"
-echo "  • Plot results: python3 plot_results.py $OUTPUT_FILE"
-echo "  • Run with different input: $0 -i your_file.csv -o your_results.csv"
-echo ""
 echo -e "${GREEN}Done! 🚀${NC}"
+
