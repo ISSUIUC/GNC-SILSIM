@@ -18,12 +18,12 @@ g++ -std=c++17 -O2 -Wall -Wextra \
     -I"$EIGEN_INCLUDE" \
     -I. \
     -Ignc \
-    simulation/test_ekf.cpp \
+    gnc/test_ekf.cpp \
     gnc/ekf.cpp \
-    -o simulation/test_ekf
+    -o gnc/test_ekf
 
 if [ $? -eq 0 ]; then
-    echo "Build successful! Run with: ./simulation/test_ekf"
+    echo "Build successful! Run with: ./gnc/test_ekf"
 else
     echo "Build failed!"
     exit 1
