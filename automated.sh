@@ -106,9 +106,6 @@ EIGEN_INCLUDE=$(pkg-config --cflags eigen3 | sed 's/-I//')
 
 echo "Compiling with Eigen at: $EIGEN_INCLUDE"
 
-# Create simulation directory if it doesn't exist
-mkdir -p simulation
-
 g++ -std=c++17 -O2 -Wall -Wextra \
     -I"$EIGEN_INCLUDE" \
     -I. \
