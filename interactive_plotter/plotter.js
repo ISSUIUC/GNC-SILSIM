@@ -91,6 +91,7 @@
 	let lastMtime = null;
 	let pollTimer = null;
 	let showFSMLabels = false;
+	let viewMode = '2D'; // '2D' or '3D'
 	
 	// Performance optimization: cache FSM order indices
 	const fsmIndexMap = {};
@@ -247,7 +248,206 @@
 		'#1abc9c', '#e67e22', '#3498db', '#95a5a6', '#34495e'
 	];
 	
+	function render3D() {
+		const dataTypes = getSel('dataType'); // Array of selected data types
+		const rawTypes = getSel('rawData'); // Array of selected raw data types
+		const from = getSel('fsmFrom');
+		const to = getSel('fsmTo');
+		const fromIdx = fsmIndexMap[from] ?? -1;
+		const toIdx = fsmIndexMap[to] ?? -1;
+
+		const traces = [];
+		
+		// For 3D, we need to map data types to x, y, z axes
+		// Available: pos_x, pos_y, pos_z, raw_gps_x, raw_gps_y, raw_gps_z, raw_baro_alt
+		
+		// Render Kalman position data
+		const hasPosX = dataTypes.includes('pos_x');
+		const hasPosY = dataTypes.includes('pos_y');
+		const hasPosZ = dataTypes.includes('pos_z');
+		
+		if (hasPosX && hasPosY && hasPosZ) {
+			const xVals = [];
+			const yVals = [];
+			const zVals = [];
+			const timeVals = [];
+			
+			for (let i = 0; i < filteredData.length; i++) {
+				const r = filteredData[i];
+				// Map: X position → Z axis (vertical), Y position → X axis, Z position → Y axis
+				xVals.push(r.pos_y);  // Y position on X axis (horizontal)
+				yVals.push(r.pos_z);  // Z position on Y axis (horizontal)
+				zVals.push(r.pos_x);  // X position on Z axis (vertical)
+				timeVals.push(r.timestamp);
+			}
+			
+			if (xVals.length > 0) {
+				traces.push({
+					x: xVals,
+					y: yVals,
+					z: zVals,
+					type: 'scatter3d',
+					mode: 'lines+markers',
+					name: 'Kalman Position',
+					line: { color: traceColors[0], width: 4 },
+					marker: { size: 3, color: timeVals, colorscale: 'Viridis', showscale: true, colorbar: { title: 'Time (s)' } }
+				});
+			}
+		}
+		
+		// Render GPS position data
+		const hasGPSX = rawTypes.includes('raw_gps_x');
+		const hasGPSY = rawTypes.includes('raw_gps_y');
+		const hasGPSZ = rawTypes.includes('raw_gps_z');
+		
+		if (hasGPSX && hasGPSY && hasGPSZ) {
+			const xVals = [];
+			const yVals = [];
+			const zVals = [];
+			const timeVals = [];
+			
+			for (let i = 0; i < data.length; i++) {
+				const r = data[i];
+				
+				// Check FSM range
+				if (r.fsm && r.fsm !== 'nan') {
+					const idx = fsmIndexMap[r.fsm];
+					if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
+				}
+				
+				const local = convertGPSToLocal(
+					r.raw_gps_latitude,
+					r.raw_gps_longitude,
+					r.raw_gps_altitude
+				);
+				
+				if (local) {
+					// Map GPS coordinates: GPS X (altitude) → Z axis (vertical), GPS Y (longitude) → X axis, GPS Z (latitude) → Y axis
+					xVals.push(local.x); // GPS Y (longitude) on X axis (horizontal)
+					yVals.push(local.y); // GPS Z (latitude) on Y axis (horizontal)
+					zVals.push(local.z); // GPS X (altitude) on Z axis (vertical)
+					timeVals.push(r.timestamp);
+				}
+			}
+			
+			if (xVals.length > 0) {
+				traces.push({
+					x: xVals,
+					y: yVals,
+					z: zVals,
+					type: 'scatter3d',
+					mode: 'lines+markers',
+					name: 'GPS Position',
+					line: { color: traceColors[1], width: 2, dash: 'dash' },
+					marker: { size: 3, color: traceColors[1], opacity: 0.7 }
+				});
+			}
+		}
+		
+		// Render barometer altitude as X-axis only (if selected)
+		// Note: This displays altitude along X-axis with Y=Z=0, showing vertical trajectory
+		if (rawTypes.includes('raw_baro_alt')) {
+			const xVals = [];
+			const yVals = [];
+			const zVals = [];
+			const timeVals = [];
+			
+			for (let i = 0; i < data.length; i++) {
+				const r = data[i];
+				
+				// Check FSM range
+				if (r.fsm && r.fsm !== 'nan') {
+					const idx = fsmIndexMap[r.fsm];
+					if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
+				}
+				
+				const alt = r.raw_baro_alt;
+				if (alt !== undefined && !Number.isNaN(alt) && alt !== 'nan') {
+					xVals.push(0); // Place at origin for X and Y (horizontal)
+					yVals.push(0);
+					zVals.push(alt); // Barometer altitude on Z axis (vertical)
+					timeVals.push(r.timestamp);
+				}
+			}
+			
+			if (xVals.length > 0) {
+				traces.push({
+					x: xVals,
+					y: yVals,
+					z: zVals,
+					type: 'scatter3d',
+					mode: 'lines+markers',
+					name: 'Barometer Altitude (Vertical)',
+					line: { color: traceColors[2], width: 2, dash: 'dot' },
+					marker: { size: 3, color: traceColors[2], opacity: 0.7 }
+				});
+			}
+		}
+		
+		// If no traces, show message
+		if (traces.length === 0) {
+			const layout = {
+				title: { text: '3D Position Trajectory', font: { size: 20, color: '#2c3e50' } },
+				scene: {
+					xaxis: { title: 'Y Position (m)', gridcolor: '#e9ecef', gridwidth: 1 },
+					yaxis: { title: 'Z Position (m)', gridcolor: '#e9ecef', gridwidth: 1 },
+					zaxis: { title: 'X Position (m) - Vertical', gridcolor: '#e9ecef', gridwidth: 1 },
+					bgcolor: 'white'
+				},
+				plot_bgcolor: 'white',
+				paper_bgcolor: 'white',
+				font: { family: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif', size: 12, color: '#2c3e50' },
+				margin: { t: 60, r: 50, b: 60, l: 80 }
+			};
+			
+			const config = { responsive: true, displayModeBar: true, displaylogo: false };
+			
+			if (hasRendered) {
+				Plotly.react('plot', [], layout, config);
+			} else {
+				Plotly.newPlot('plot', [], layout, config);
+				hasRendered = true;
+			}
+			return;
+		}
+		
+		const layout = {
+			title: { text: '3D Position Trajectory', font: { size: 20, color: '#2c3e50' } },
+			scene: {
+				xaxis: { title: 'Y Position (m)', gridcolor: '#e9ecef', gridwidth: 1 },
+				yaxis: { title: 'Z Position (m)', gridcolor: '#e9ecef', gridwidth: 1 },
+				zaxis: { title: 'X Position (m) - Vertical', gridcolor: '#e9ecef', gridwidth: 1 },
+				bgcolor: 'white',
+				camera: {
+					eye: { x: 1.5, y: 1.5, z: 1.5 }
+				}
+			},
+			plot_bgcolor: 'white',
+			paper_bgcolor: 'white',
+			font: { family: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif', size: 12, color: '#2c3e50' },
+			legend: { x: 0.02, y: 0.98, bgcolor: 'rgba(255,255,255,0.8)', bordercolor: '#e9ecef', borderwidth: 1 },
+			margin: { t: 60, r: 50, b: 60, l: 80 }
+		};
+		
+		const config = { responsive: true, displayModeBar: true, displaylogo: false };
+		
+		if (hasRendered) {
+			Plotly.react('plot', traces, layout, config);
+		} else {
+			Plotly.newPlot('plot', traces, layout, config);
+			hasRendered = true;
+		}
+		
+		updateInfoPanel();
+	}
+	
 	function render() {
+		// Route to appropriate render function based on view mode
+		if (viewMode === '3D') {
+			render3D();
+			return;
+		}
+		
 		const dataTypes = getSel('dataType'); // Array of selected data types
 		const rawTypes = getSel('rawData'); // Array of selected raw data types
 		const from = getSel('fsmFrom');
@@ -416,7 +616,7 @@
 		// Determine title and y-axis label from first selected data type
 		const firstDataType = dataTypes.length > 0 ? dataTypes[0] : 'data';
 		const title = dataTypes.length > 1 
-			? `Multiple Data Types vs Time (${dataTypes.length} selected)`
+			? `Multiple Data Types vs Time`
 			: `${dataLabels[firstDataType] || firstDataType} vs Time`;
 		
 		const layout = {
@@ -661,7 +861,17 @@
 
 	// Expose reset for the button
 	window.resetView = function resetView() {
-		Plotly.relayout('plot', { 'xaxis.autorange': true, 'yaxis.autorange': true });
+		if (viewMode === '3D') {
+			// Reset 3D camera view
+			Plotly.relayout('plot', {
+				'scene.camera': {
+					eye: { x: 1.5, y: 1.5, z: 1.5 }
+				}
+			});
+		} else {
+			// Reset 2D view
+			Plotly.relayout('plot', { 'xaxis.autorange': true, 'yaxis.autorange': true });
+		}
 	};
 
 	// Toggle FSM labels visibility
@@ -672,4 +882,104 @@
 		// Re-render to update labels
 		onSelectionsChange();
 	};
+	
+	// Switch between 2D and 3D view
+	window.switchView = function switchView(mode) {
+		viewMode = mode;
+		
+		// Update tab appearance
+		document.getElementById('view2D').classList.toggle('active', mode === '2D');
+		document.getElementById('view3D').classList.toggle('active', mode === '3D');
+		
+		// Show/hide controls based on mode
+		if (mode === '3D') {
+			// In 3D mode, hide some controls and update available options
+			update3DControls();
+		} else {
+			// In 2D mode, show all controls
+			update2DControls();
+		}
+		
+		// Reset render state and re-render
+		hasRendered = false;
+		onSelectionsChange();
+	};
+	
+	function update3DControls() {
+		// Hide FSM labels button in 3D mode (not applicable)
+		const toggleBtn = document.getElementById('toggleFSMLabels');
+		if (toggleBtn) toggleBtn.style.display = 'none';
+		
+		// Update available options in dropdowns for 3D mode
+		// Hide options that aren't applicable to 3D
+		const dataTypeDropdown = document.getElementById('dataTypeDropdown');
+		const rawDataDropdown = document.getElementById('rawDataDropdown');
+		
+		if (dataTypeDropdown) {
+			const options = dataTypeDropdown.querySelectorAll('.multiselect-option');
+			options.forEach(opt => {
+				const value = opt.querySelector('input').value;
+				// Only show position options in 3D
+				if (value === 'pos_x' || value === 'pos_y' || value === 'pos_z') {
+					opt.style.display = 'flex';
+				} else {
+					opt.style.display = 'none';
+				}
+			});
+		}
+		
+		if (rawDataDropdown) {
+			const options = rawDataDropdown.querySelectorAll('.multiselect-option');
+			options.forEach(opt => {
+				const value = opt.querySelector('input').value;
+				// Only show GPS and barometer in 3D
+				if (value === 'raw_gps_x' || value === 'raw_gps_y' || value === 'raw_gps_z' || value === 'raw_baro_alt') {
+					opt.style.display = 'flex';
+				} else {
+					opt.style.display = 'none';
+				}
+			});
+			
+			// Auto-select pos_x, pos_y, pos_z and GPS x, y, z by default in 3D mode
+			if (dataTypeDropdown) {
+				['pos_x', 'pos_y', 'pos_z'].forEach(val => {
+					const cb = dataTypeDropdown.querySelector(`input[value="${val}"]`);
+					if (cb) cb.checked = true;
+				});
+			}
+			
+			['raw_gps_x', 'raw_gps_y', 'raw_gps_z'].forEach(val => {
+				const cb = rawDataDropdown.querySelector(`input[value="${val}"]`);
+				if (cb) cb.checked = true;
+			});
+			updateMultiSelectDisplay('rawDataWrapper', 'rawDataButton', 'rawDataCount');
+		}
+		
+		if (dataTypeDropdown) {
+			updateMultiSelectDisplay('dataTypeWrapper', 'dataTypeButton', 'dataTypeCount');
+		}
+	}
+	
+	function update2DControls() {
+		// Show FSM labels button in 2D mode
+		const toggleBtn = document.getElementById('toggleFSMLabels');
+		if (toggleBtn) toggleBtn.style.display = '';
+		
+		// Show all options in 2D mode
+		const dataTypeDropdown = document.getElementById('dataTypeDropdown');
+		if (dataTypeDropdown) {
+			const options = dataTypeDropdown.querySelectorAll('.multiselect-option');
+			options.forEach(opt => {
+				opt.style.display = 'flex';
+			});
+		}
+		
+		const rawDataDropdown = document.getElementById('rawDataDropdown');
+		if (rawDataDropdown) {
+			const options = rawDataDropdown.querySelectorAll('.multiselect-option');
+			options.forEach(opt => {
+				opt.style.display = 'flex';
+			});
+		}
+	}
 })();

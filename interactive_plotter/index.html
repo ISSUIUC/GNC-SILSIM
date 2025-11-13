@@ -222,6 +222,7 @@
         .plot-container {
             padding: 30px;
             height: 600px;
+            min-height: 600px;
         }
 
         .info-panel {
@@ -272,6 +273,42 @@
             border: 1px solid #f5c6cb;
         }
 
+        /* View mode tabs */
+        .view-tabs {
+            display: flex;
+            gap: 10px;
+            padding: 20px 30px 0;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .view-tab {
+            padding: 12px 24px;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s ease;
+            position: relative;
+            top: 2px;
+        }
+
+        .view-tab:hover {
+            background: #f8f9fa;
+            color: #2c3e50;
+        }
+
+        .view-tab.active {
+            background: white;
+            border-color: #667eea;
+            color: #667eea;
+            border-bottom: 2px solid white;
+            z-index: 1;
+        }
+
         @media (max-width: 768px) {
             .control-group {
                 flex-direction: column;
@@ -292,6 +329,11 @@
     <div class="container">
         <div class="header">
             <h1>🚀 Arthur's Kalman Plotter</h1>
+        </div>
+
+        <div class="view-tabs">
+            <div class="view-tab active" id="view2D" onclick="switchView('2D')">2D View</div>
+            <div class="view-tab" id="view3D" onclick="switchView('3D')">3D View</div>
         </div>
 
         <div class="controls">
@@ -347,7 +389,7 @@
                 <div class="control-item">
                     <label for="fsmFrom">FSM State From</label>
                     <select id="fsmFrom">
-                        <option value="STATE_IDLE">IDLE</option>
+                        <option value="STATE_IDLE" selected>IDLE</option>
                         <option value="STATE_FIRST_BOOST">FIRST_BOOST</option>
                         <option value="STATE_BURNOUT">BURNOUT</option>
                         <option value="STATE_COAST">COAST</option>
@@ -375,7 +417,7 @@
                         <option value="STATE_DROGUE">DROGUE</option>
                         <option value="STATE_MAIN_DEPLOY">MAIN_DEPLOY</option>
                         <option value="STATE_MAIN">MAIN</option>
-                        <option value="STATE_LANDED">LANDED</option>
+                        <option value="STATE_LANDED" selected>LANDED</option>
                         <option value="STATE_SUSTAINER_IGNITION">SUSTAINER_IGNITION</option>
                         <option value="STATE_SECOND_BOOST">SECOND_BOOST</option>
                         <option value="STATE_FIRST_SEPARATION">FIRST_SEPARATION</option>
