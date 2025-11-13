@@ -11,6 +11,7 @@ import http.server
 import json
 import os
 import signal
+import socket
 import sys
 import threading
 import time
@@ -46,11 +47,45 @@ class EventBroker:
                 try:
                     h.wfile.write(b"data: update\n\n")
                     h.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError, OSError):
+                    # Client disconnected - mark for removal
+                    dead.append(h)
                 except Exception:
+                    # Other errors - also mark for removal
                     dead.append(h)
             for h in dead:
                 if h in self._clients:
                     self._clients.remove(h)
+    
+    def close_all(self) -> None:
+        """Close all SSE connections to speed up shutdown."""
+        with self._lock:
+            for h in self._clients:
+                try:
+                    # Close the connection socket to force disconnect
+                    if hasattr(h, 'connection') and h.connection:
+                        try:
+                            h.connection.shutdown(socket.SHUT_RDWR)
+                        except (OSError, AttributeError):
+                            pass
+                        try:
+                            h.connection.close()
+                        except (OSError, AttributeError):
+                            pass
+                    # Also close file handles (these wrap the socket)
+                    if hasattr(h, 'wfile'):
+                        try:
+                            h.wfile.close()
+                        except (OSError, AttributeError):
+                            pass
+                    if hasattr(h, 'rfile'):
+                        try:
+                            h.rfile.close()
+                        except (OSError, AttributeError):
+                            pass
+                except Exception:
+                    pass
+            self._clients.clear()
 
 
 broker = EventBroker()
@@ -98,17 +133,26 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:  # type: ignore[override]
         if self.path.startswith("/api/results"):
-            payload = read_csv_as_json(CSV_PATH)
-            body = json.dumps(payload).encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
             try:
-                print(f"[API] Served /api/results (rows={len(payload.get('rows', []))})")
-            except Exception:
-                pass
+                payload = read_csv_as_json(CSV_PATH)
+                body = json.dumps(payload).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                try:
+                    self.wfile.write(body)
+                    self.wfile.flush()
+                    print(f"[API] Served /api/results (rows={len(payload.get('rows', []))})")
+                except (BrokenPipeError, ConnectionResetError, OSError):
+                    # Client disconnected before we finished sending - this is normal
+                    pass
+            except Exception as e:
+                # Log unexpected errors but don't crash
+                try:
+                    print(f"[API] Error serving /api/results: {e}")
+                except Exception:
+                    pass
             return
 
         if self.path.startswith("/events"):
@@ -127,10 +171,16 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 # Send an initial comment to establish stream
                 self.wfile.write(b": connected\n\n")
                 self.wfile.flush()
+                # Check shutdown more frequently (every 0.1s instead of 1s) for faster shutdown
                 while not shutdown_event.is_set():
-                    time.sleep(1)
+                    if shutdown_event.wait(0.1):
+                        break
                 # fallthrough to finally
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                # Client disconnected - this is normal for SSE
+                pass
             except Exception:
+                # Other errors
                 pass
             finally:
                 broker.remove(self)
@@ -172,7 +222,10 @@ def main() -> None:
     def handle_sigint(signum, frame):  # type: ignore[no-untyped-def]
         print("\nStopping server...")
         shutdown_event.set()
+        # Close all SSE connections immediately to speed up shutdown
+        broker.close_all()
         try:
+            # Shutdown with a timeout - stop accepting new connections
             server.shutdown()
         finally:
             server.server_close()
@@ -195,6 +248,8 @@ def main() -> None:
         server.serve_forever()
     finally:
         shutdown_event.set()
+        # Close all SSE connections immediately
+        broker.close_all()
         server.server_close()
         print("👋 Server stopped.")
 
