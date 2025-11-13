@@ -15,10 +15,75 @@
 		pos_x: 'Position X', pos_y: 'Position Y', pos_z: 'Position Z',
 		vel_x: 'Velocity X', vel_y: 'Velocity Y', vel_z: 'Velocity Z',
 		acc_x: 'Acceleration X', acc_y: 'Acceleration Y', acc_z: 'Acceleration Z',
-		altitude: 'Altitude',
+		raw_gps_latitude: 'Raw GPS Latitude', raw_gps_longitude: 'Raw GPS Longitude', raw_gps_altitude: 'Raw GPS Altitude',
+		raw_gps_x: 'GPS X (from Raw GPS Altitude)', raw_gps_y: 'GPS Y (from Raw GPS Longitude)', raw_gps_z: 'GPS Z (from Raw GPS Latitude)',
 		raw_baro_alt: 'Raw Barometer Altitude',
 		raw_highg_ax: 'Raw HighG X', raw_highg_ay: 'Raw HighG Y', raw_highg_az: 'Raw HighG Z'
 	};
+	
+	// GPS conversion constants - will be set from first data point
+	let LAUNCH_LAT = null; // in microdegrees
+	let LAUNCH_LON = null; // in microdegrees
+	let LAUNCH_LAT_DEG = null; // in degrees
+	let LAUNCH_LON_DEG = null; // in degrees
+	let GROUND_ALT = null; // meters (from first GPS altitude)
+	const METERS_PER_DEG_LAT = 111320; // meters per degree latitude (constant)
+	
+	// Initialize launch coordinates from first valid GPS data point
+	function initializeLaunchCoordinates() {
+		if (!data || data.length === 0) return;
+		
+		// Find first row with valid GPS data
+		for (let i = 0; i < data.length; i++) {
+			const row = data[i];
+			const lat = row.raw_gps_latitude;
+			const lon = row.raw_gps_longitude;
+			const alt = row.raw_gps_altitude;
+			
+			if (lat !== undefined && lon !== undefined && alt !== undefined &&
+			    !Number.isNaN(lat) && !Number.isNaN(lon) && !Number.isNaN(alt) &&
+			    lat !== 'nan' && lon !== 'nan' && alt !== 'nan') {
+				// Store launch coordinates in microdegrees
+				LAUNCH_LAT = lat;
+				LAUNCH_LON = lon;
+				GROUND_ALT = alt;
+				
+				// Convert to degrees for calculations
+				LAUNCH_LAT_DEG = lat / 1e7;
+				LAUNCH_LON_DEG = lon / 1e7;
+				
+				console.log(`[GPS] Launch coordinates initialized: lat=${LAUNCH_LAT_DEG.toFixed(6)}, lon=${LAUNCH_LON_DEG.toFixed(6)}, alt=${GROUND_ALT.toFixed(2)}m`);
+				return;
+			}
+		}
+	}
+	
+	// Convert GPS coordinates to local x, y, z coordinates
+	// Input lat/lon are in microdegrees (degrees * 10^7)
+	function convertGPSToLocal(lat, lon, alt) {
+		if (lat === undefined || lon === undefined || alt === undefined ||
+		    Number.isNaN(lat) || Number.isNaN(lon) || Number.isNaN(alt) ||
+		    LAUNCH_LAT === null || LAUNCH_LON === null || GROUND_ALT === null) {
+			return null;
+		}
+		
+		// Convert from microdegrees to degrees
+		const latDeg = lat / 1e7;
+		const lonDeg = lon / 1e7;
+		
+		// Calculate meters per degree longitude at launch latitude
+		const metersPerDegLon = METERS_PER_DEG_LAT * Math.cos(LAUNCH_LAT_DEG * Math.PI / 180);
+		
+		// Convert to local coordinates
+		// X = east-west (positive east, from longitude)
+		const x = (lonDeg - LAUNCH_LON_DEG) * metersPerDegLon;
+		// Y = north-south (positive north, from latitude)
+		const y = (latDeg - LAUNCH_LAT_DEG) * METERS_PER_DEG_LAT;
+		// Z = up-down (positive up, relative to ground level)
+		const z = alt - GROUND_ALT;
+		
+		return { x, y, z };
+	}
 
 	let data = [];
 	let filteredData = [];
@@ -47,6 +112,9 @@
 		}
 		console.log(`[API] rows=${data.length}`);
 		if (!Array.isArray(data) || data.length === 0) throw new Error('No data found');
+		
+		// Initialize launch coordinates from first GPS data point
+		initializeLaunchCoordinates();
 	}
 
 	function getSel(id) {
@@ -175,10 +243,13 @@
 			marker: { size: 3, color: '#667eea' }
 		});
 
-		if (rawType !== 'none' && data[0] && data[0][rawType] !== undefined) {
+		if (rawType !== 'none' && data[0]) {
 			// Filter raw data in a single pass
 			const rawX = [];
 			const rawY = [];
+			
+			// Check if this is a GPS conversion type
+			const isGPSConversion = rawType === 'raw_gps_x' || rawType === 'raw_gps_y' || rawType === 'raw_gps_z';
 			const multiplier = rawType.startsWith('raw_highg') ? 9.81 : 1;
 			
 			for (let i = 0; i < data.length; i++) {
@@ -190,11 +261,37 @@
 					if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
 				}
 				
-				// Check value
-				const v = r[rawType];
-				if (v !== undefined && !Number.isNaN(v) && v !== 'nan') {
+				let value = null;
+				
+				if (isGPSConversion) {
+					// Convert GPS coordinates to local x, y, z
+					const local = convertGPSToLocal(
+						r.raw_gps_latitude,
+						r.raw_gps_longitude,
+						r.raw_gps_altitude
+					);
+					
+					if (local) {
+						// Map: X = altitude, Y = longitude, Z = latitude
+						if (rawType === 'raw_gps_x') {
+							value = local.z; // X from altitude
+						} else if (rawType === 'raw_gps_y') {
+							value = local.x; // Y from longitude
+						} else if (rawType === 'raw_gps_z') {
+							value = local.y; // Z from latitude
+						}
+					}
+				} else {
+					// Regular raw data
+					const v = r[rawType];
+					if (v !== undefined && !Number.isNaN(v) && v !== 'nan') {
+						value = v * multiplier;
+					}
+				}
+				
+				if (value !== null && !Number.isNaN(value)) {
 					rawX.push(r.timestamp);
-					rawY.push(v * multiplier);
+					rawY.push(value);
 				}
 			}
 			
