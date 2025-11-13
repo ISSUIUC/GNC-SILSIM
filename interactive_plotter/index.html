@@ -92,6 +92,95 @@
             border-color: #667eea;
         }
 
+        /* Multi-select dropdown styles */
+        .multiselect-wrapper {
+            position: relative;
+            min-width: 200px;
+        }
+
+        .multiselect-button {
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .multiselect-button:hover {
+            border-color: #667eea;
+        }
+
+        .multiselect-button:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .multiselect-button::after {
+            content: '▼';
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+
+        .multiselect-button.open::after {
+            content: '▲';
+        }
+
+        .multiselect-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            margin-top: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .multiselect-dropdown.open {
+            display: block;
+        }
+
+        .multiselect-option {
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .multiselect-option:hover {
+            background: #f8f9fa;
+        }
+
+        .multiselect-option input[type="checkbox"] {
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .multiselect-option label {
+            cursor: pointer;
+            flex: 1;
+            margin: 0;
+        }
+
+        .multiselect-selected-count {
+            color: #667eea;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
         .button-group {
             display: flex;
             gap: 15px;
@@ -209,17 +298,50 @@
             <div class="control-group">
                 <div class="control-item">
                     <label for="dataType">Kalman Data Type</label>
-                    <select id="dataType">
-                        <option value="pos_x">Position X</option>
-                        <option value="pos_y">Position Y</option>
-                        <option value="pos_z">Position Z</option>
-                        <option value="vel_x">Velocity X</option>
-                        <option value="vel_y">Velocity Y</option>
-                        <option value="vel_z">Velocity Z</option>
-                        <option value="acc_x">Acceleration X</option>
-                        <option value="acc_y">Acceleration Y</option>
-                        <option value="acc_z">Acceleration Z</option>
-                    </select>
+                    <div class="multiselect-wrapper" id="dataTypeWrapper">
+                        <div class="multiselect-button" id="dataTypeButton">
+                            <span>Select data types...</span>
+                            <span class="multiselect-selected-count" id="dataTypeCount"></span>
+                        </div>
+                        <div class="multiselect-dropdown" id="dataTypeDropdown">
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="dataType_pos_x" value="pos_x">
+                                <label for="dataType_pos_x">Position X</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="dataType_pos_y" value="pos_y">
+                                <label for="dataType_pos_y">Position Y</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="dataType_pos_z" value="pos_z">
+                                <label for="dataType_pos_z">Position Z</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="dataType_vel_x" value="vel_x">
+                                <label for="dataType_vel_x">Velocity X</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="dataType_vel_y" value="vel_y">
+                                <label for="dataType_vel_y">Velocity Y</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="dataType_vel_z" value="vel_z">
+                                <label for="dataType_vel_z">Velocity Z</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="dataType_acc_x" value="acc_x">
+                                <label for="dataType_acc_x">Acceleration X</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="dataType_acc_y" value="acc_y">
+                                <label for="dataType_acc_y">Acceleration Y</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="dataType_acc_z" value="acc_z">
+                                <label for="dataType_acc_z">Acceleration Z</label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="control-item">
@@ -262,16 +384,42 @@
 
                 <div class="control-item">
                     <label for="rawData">Show Raw Data</label>
-                    <select id="rawData">
-                        <option value="none">None</option>
-                        <option value="raw_baro_alt">Raw Barometer Altitude</option>
-                        <option value="raw_highg_ax">Raw HighG X</option>
-                        <option value="raw_highg_ay">Raw HighG Y</option>
-                        <option value="raw_highg_az">Raw HighG Z</option>
-                        <option value="raw_gps_x">Raw GPS X (from Altitude)</option>
-                        <option value="raw_gps_y">Raw GPS Y (from Longitude)</option>
-                        <option value="raw_gps_z">Raw GPS Z (from Latitude)</option>
-                    </select>
+                    <div class="multiselect-wrapper" id="rawDataWrapper">
+                        <div class="multiselect-button" id="rawDataButton">
+                            <span>Select raw data...</span>
+                            <span class="multiselect-selected-count" id="rawDataCount"></span>
+                        </div>
+                        <div class="multiselect-dropdown" id="rawDataDropdown">
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="rawData_baro_alt" value="raw_baro_alt">
+                                <label for="rawData_baro_alt">Raw Barometer Altitude</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="rawData_highg_ax" value="raw_highg_ax">
+                                <label for="rawData_highg_ax">Raw HighG X</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="rawData_highg_ay" value="raw_highg_ay">
+                                <label for="rawData_highg_ay">Raw HighG Y</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="rawData_highg_az" value="raw_highg_az">
+                                <label for="rawData_highg_az">Raw HighG Z</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="rawData_gps_x" value="raw_gps_x">
+                                <label for="rawData_gps_x">GPS X (from Raw GPS Altitude)</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="rawData_gps_y" value="raw_gps_y">
+                                <label for="rawData_gps_y">GPS Y (from Raw GPS Longitude)</label>
+                            </div>
+                            <div class="multiselect-option">
+                                <input type="checkbox" id="rawData_gps_z" value="raw_gps_z">
+                                <label for="rawData_gps_z">GPS Z (from Raw GPS Latitude)</label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

@@ -118,11 +118,20 @@
 	}
 
 	function getSel(id) {
+		// For multi-select, return array of selected values
+		if (id === 'dataType' || id === 'rawData') {
+			const wrapper = document.getElementById(id + 'Wrapper');
+			if (!wrapper) return id === 'rawData' ? ['none'] : [];
+			const checkboxes = wrapper.querySelectorAll('input[type="checkbox"]:checked');
+			const values = Array.from(checkboxes).map(cb => cb.value);
+			return id === 'rawData' ? (values.length > 0 ? values : ['none']) : (values.length > 0 ? values : []);
+		}
+		// For regular selects
 		return document.getElementById(id).value;
 	}
 
 	function filterBySelections() {
-		const dataType = getSel('dataType');
+		const dataTypes = getSel('dataType'); // Array of selected types
 		const from = getSel('fsmFrom');
 		const to = getSel('fsmTo');
 		const fromIdx = fsmIndexMap[from] ?? -1;
@@ -139,9 +148,21 @@
 				if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
 			}
 			
-			// Check data value
-			const v = row[dataType];
-			if (v !== undefined && !Number.isNaN(v) && v !== 'nan') {
+			// Check if at least one selected data type has a valid value
+			if (dataTypes.length > 0) {
+				let hasValidValue = false;
+				for (let j = 0; j < dataTypes.length; j++) {
+					const v = row[dataTypes[j]];
+					if (v !== undefined && !Number.isNaN(v) && v !== 'nan') {
+						hasValidValue = true;
+						break;
+					}
+				}
+				if (hasValidValue) {
+					filteredData.push(row);
+				}
+			} else {
+				// No data types selected, include all rows that pass FSM filter
 				filteredData.push(row);
 			}
 		}
@@ -176,18 +197,23 @@
 	}
 
 	function computeFSMMarkers() {
-		const dataType = getSel('dataType');
+		const dataTypes = getSel('dataType'); // Array
 		const from = getSel('fsmFrom');
 		const to = getSel('fsmTo');
 		const fromIdx = fsmIndexMap[from] ?? -1;
 		const toIdx = fsmIndexMap[to] ?? -1;
 
 		// Use already filtered data for value calculation (much faster)
+		// Collect values from all selected data types
 		const values = [];
-		for (let i = 0; i < filteredData.length; i++) {
-			const v = filteredData[i][dataType];
-			if (v !== undefined && !Number.isNaN(v)) {
-				values.push(v);
+		if (dataTypes.length > 0) {
+			for (let i = 0; i < filteredData.length; i++) {
+				dataTypes.forEach(dataType => {
+					const v = filteredData[i][dataType];
+					if (v !== undefined && !Number.isNaN(v)) {
+						values.push(v);
+					}
+				});
 			}
 		}
 
@@ -215,9 +241,15 @@
 		return { markers, yMin: minVal, yMax: maxVal };
 	}
 
+	// Color palette for multiple traces
+	const traceColors = [
+		'#667eea', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', 
+		'#1abc9c', '#e67e22', '#3498db', '#95a5a6', '#34495e'
+	];
+	
 	function render() {
-		const dataType = getSel('dataType');
-		const rawType = getSel('rawData');
+		const dataTypes = getSel('dataType'); // Array of selected data types
+		const rawTypes = getSel('rawData'); // Array of selected raw data types
 		const from = getSel('fsmFrom');
 		const to = getSel('fsmTo');
 		const fromIdx = fsmIndexMap[from] ?? -1;
@@ -225,87 +257,97 @@
 
 		const traces = [];
 		
-		// Pre-extract x and y arrays in a single pass (much faster than multiple maps)
-		const xVals = [];
-		const yVals = [];
-		for (let i = 0; i < filteredData.length; i++) {
-			xVals.push(filteredData[i].timestamp);
-			yVals.push(filteredData[i][dataType]);
-		}
-		
-		traces.push({
-			x: xVals,
-			y: yVals,
-			type: 'scatter',
-			mode: 'lines+markers',
-			name: dataLabels[dataType] || dataType,
-			line: { color: '#667eea', width: 2 },
-			marker: { size: 3, color: '#667eea' }
-		});
-
-		if (rawType !== 'none' && data[0]) {
-			// Filter raw data in a single pass
-			const rawX = [];
-			const rawY = [];
-			
-			// Check if this is a GPS conversion type
-			const isGPSConversion = rawType === 'raw_gps_x' || rawType === 'raw_gps_y' || rawType === 'raw_gps_z';
-			const multiplier = rawType.startsWith('raw_highg') ? 9.81 : 1;
-			
-			for (let i = 0; i < data.length; i++) {
-				const r = data[i];
-				
-				// Check FSM range
-				if (r.fsm && r.fsm !== 'nan') {
-					const idx = fsmIndexMap[r.fsm];
-					if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
+		// Render multiple Kalman data types
+		if (dataTypes.length > 0) {
+			dataTypes.forEach((dataType, idx) => {
+				// Pre-extract x and y arrays in a single pass
+				const xVals = [];
+				const yVals = [];
+				for (let i = 0; i < filteredData.length; i++) {
+					xVals.push(filteredData[i].timestamp);
+					yVals.push(filteredData[i][dataType]);
 				}
 				
-				let value = null;
+				traces.push({
+					x: xVals,
+					y: yVals,
+					type: 'scatter',
+					mode: 'lines+markers',
+					name: dataLabels[dataType] || dataType,
+					line: { color: traceColors[idx % traceColors.length], width: 2 },
+					marker: { size: 3, color: traceColors[idx % traceColors.length] }
+				});
+			});
+		}
+
+		// Render multiple raw data types
+		if (rawTypes.length > 0 && !rawTypes.includes('none') && data[0]) {
+			rawTypes.forEach((rawType, rawIdx) => {
+				// Filter raw data in a single pass
+				const rawX = [];
+				const rawY = [];
 				
-				if (isGPSConversion) {
-					// Convert GPS coordinates to local x, y, z
-					const local = convertGPSToLocal(
-						r.raw_gps_latitude,
-						r.raw_gps_longitude,
-						r.raw_gps_altitude
-					);
+				// Check if this is a GPS conversion type
+				const isGPSConversion = rawType === 'raw_gps_x' || rawType === 'raw_gps_y' || rawType === 'raw_gps_z';
+				const multiplier = rawType.startsWith('raw_highg') ? 9.81 : 1;
+				
+				for (let i = 0; i < data.length; i++) {
+					const r = data[i];
 					
-					if (local) {
-						// Map: X = altitude, Y = longitude, Z = latitude
-						if (rawType === 'raw_gps_x') {
-							value = local.z; // X from altitude
-						} else if (rawType === 'raw_gps_y') {
-							value = local.x; // Y from longitude
-						} else if (rawType === 'raw_gps_z') {
-							value = local.y; // Z from latitude
+					// Check FSM range
+					if (r.fsm && r.fsm !== 'nan') {
+						const idx = fsmIndexMap[r.fsm];
+						if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
+					}
+					
+					let value = null;
+					
+					if (isGPSConversion) {
+						// Convert GPS coordinates to local x, y, z
+						const local = convertGPSToLocal(
+							r.raw_gps_latitude,
+							r.raw_gps_longitude,
+							r.raw_gps_altitude
+						);
+						
+						if (local) {
+							// Map: X = altitude, Y = longitude, Z = latitude
+							if (rawType === 'raw_gps_x') {
+								value = local.z; // X from altitude
+							} else if (rawType === 'raw_gps_y') {
+								value = local.x; // Y from longitude
+							} else if (rawType === 'raw_gps_z') {
+								value = local.y; // Z from latitude
+							}
+						}
+					} else {
+						// Regular raw data
+						const v = r[rawType];
+						if (v !== undefined && !Number.isNaN(v) && v !== 'nan') {
+							value = v * multiplier;
 						}
 					}
-				} else {
-					// Regular raw data
-					const v = r[rawType];
-					if (v !== undefined && !Number.isNaN(v) && v !== 'nan') {
-						value = v * multiplier;
+					
+					if (value !== null && !Number.isNaN(value)) {
+						rawX.push(r.timestamp);
+						rawY.push(value);
 					}
 				}
 				
-				if (value !== null && !Number.isNaN(value)) {
-					rawX.push(r.timestamp);
-					rawY.push(value);
+				if (rawX.length > 0) {
+					// Use different colors for raw data, offset from Kalman colors
+					const colorIdx = (dataTypes.length + rawIdx) % traceColors.length;
+					traces.push({
+						x: rawX,
+						y: rawY,
+						type: 'scatter',
+						mode: 'lines',
+						name: dataLabels[rawType] || rawType,
+						line: { color: traceColors[colorIdx], width: 1, dash: 'dash' },
+						opacity: 0.7
+					});
 				}
-			}
-			
-			if (rawX.length > 0) {
-				traces.push({
-					x: rawX,
-					y: rawY,
-					type: 'scatter',
-					mode: 'lines',
-					name: dataLabels[rawType] || rawType,
-					line: { color: '#e74c3c', width: 1, dash: 'dash' },
-					opacity: 0.7
-				});
-			}
+			});
 		}
 
 		const fsmData = computeFSMMarkers();
@@ -371,10 +413,16 @@
 			});
 		}
 
+		// Determine title and y-axis label from first selected data type
+		const firstDataType = dataTypes.length > 0 ? dataTypes[0] : 'data';
+		const title = dataTypes.length > 1 
+			? `Multiple Data Types vs Time (${dataTypes.length} selected)`
+			: `${dataLabels[firstDataType] || firstDataType} vs Time`;
+		
 		const layout = {
-			title: { text: `${dataLabels[dataType] || dataType} vs Time`, font: { size: 20, color: '#2c3e50' } },
+			title: { text: title, font: { size: 20, color: '#2c3e50' } },
 			xaxis: { title: 'Time (seconds)', gridcolor: '#e9ecef', gridwidth: 1 },
-			yaxis: { title: getYAxisLabel(dataType), gridcolor: '#e9ecef', gridwidth: 1 },
+			yaxis: { title: getYAxisLabel(firstDataType), gridcolor: '#e9ecef', gridwidth: 1 },
 			plot_bgcolor: 'white', paper_bgcolor: 'white',
 			font: { family: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif', size: 12, color: '#2c3e50' },
 			legend: { x: 0.02, y: 0.98, bgcolor: 'rgba(255,255,255,0.8)', bordercolor: '#e9ecef', borderwidth: 1 },
@@ -452,10 +500,98 @@
 		}, 50); // 50ms debounce - fast enough to feel instant, but prevents excessive renders
 	}
 
+	function setupMultiSelect(wrapperId, buttonId, dropdownId, countId) {
+		const wrapper = document.getElementById(wrapperId);
+		const button = document.getElementById(buttonId);
+		const dropdown = document.getElementById(dropdownId);
+		const countSpan = document.getElementById(countId);
+		
+		if (!wrapper || !button || !dropdown) return;
+		
+		// Toggle dropdown
+		button.addEventListener('click', (e) => {
+			e.stopPropagation();
+			const isOpen = dropdown.classList.contains('open');
+			closeAllDropdowns();
+			if (!isOpen) {
+				dropdown.classList.add('open');
+				button.classList.add('open');
+			}
+		});
+		
+		// Handle checkbox clicks with shift-click support
+		const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
+		checkboxes.forEach(checkbox => {
+			checkbox.addEventListener('click', (e) => {
+				e.stopPropagation();
+				// Shift-click toggles without closing dropdown
+				if (!e.shiftKey) {
+					// Regular click - allow default behavior
+				}
+				updateMultiSelectDisplay(wrapperId, buttonId, countId);
+				onSelectionsChange();
+			});
+		});
+		
+		// Close dropdown when clicking outside
+		document.addEventListener('click', (e) => {
+			if (!wrapper.contains(e.target)) {
+				dropdown.classList.remove('open');
+				button.classList.remove('open');
+			}
+		});
+		
+		// Initialize display
+		updateMultiSelectDisplay(wrapperId, buttonId, countId);
+	}
+	
+	function closeAllDropdowns() {
+		document.querySelectorAll('.multiselect-dropdown').forEach(dd => dd.classList.remove('open'));
+		document.querySelectorAll('.multiselect-button').forEach(btn => btn.classList.remove('open'));
+	}
+	
+	function updateMultiSelectDisplay(wrapperId, buttonId, countId) {
+		const wrapper = document.getElementById(wrapperId);
+		const button = document.getElementById(buttonId);
+		const countSpan = document.getElementById(countId);
+		if (!wrapper || !button) return;
+		
+		const checkboxes = wrapper.querySelectorAll('input[type="checkbox"]:checked');
+		const count = checkboxes.length;
+		
+		if (count === 0) {
+			button.querySelector('span:first-child').textContent = 
+				wrapperId === 'dataTypeWrapper' ? 'Select data types...' : 'Select raw data...';
+			if (countSpan) countSpan.textContent = '';
+		} else if (count === 1) {
+			// Show the single selected option name
+			const label = checkboxes[0].closest('.multiselect-option').querySelector('label');
+			button.querySelector('span:first-child').textContent = label ? label.textContent : checkboxes[0].value;
+			if (countSpan) countSpan.textContent = '';
+		} else {
+			// Show "Multiple options Selected" for multiple selections
+			button.querySelector('span:first-child').textContent = 
+				wrapperId === 'dataTypeWrapper' ? 'Multiple Options Selected' : 'Multiple Options Selected';
+			if (countSpan) countSpan.textContent = `(${count})`;
+		}
+	}
+	
 	function setupControls() {
-		['dataType', 'fsmFrom', 'fsmTo', 'rawData'].forEach((id) => {
+		// Setup multi-select dropdowns
+		setupMultiSelect('dataTypeWrapper', 'dataTypeButton', 'dataTypeDropdown', 'dataTypeCount');
+		setupMultiSelect('rawDataWrapper', 'rawDataButton', 'rawDataDropdown', 'rawDataCount');
+		
+		// Setup regular selects
+		['fsmFrom', 'fsmTo'].forEach((id) => {
 			document.getElementById(id).addEventListener('change', onSelectionsChange);
 		});
+		
+		// Set default selection for dataType (first option)
+		const firstDataType = document.querySelector('#dataTypeWrapper input[type="checkbox"]');
+		if (firstDataType) {
+			firstDataType.checked = true;
+			updateMultiSelectDisplay('dataTypeWrapper', 'dataTypeButton', 'dataTypeCount');
+		}
 	}
 
 	function setupSSE() {
