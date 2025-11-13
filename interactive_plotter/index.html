@@ -72,6 +72,19 @@
             font-size: 0.9em;
         }
 
+        .control-item label input[type="checkbox"] {
+            margin-right: 8px;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .control-item label:has(input[type="checkbox"]) {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
         .control-item select {
             padding: 12px 16px;
             border: 2px solid #e9ecef;
@@ -337,7 +350,30 @@
         </div>
 
         <div class="controls">
-            <div class="control-group">
+            <!-- 3D Mode Controls -->
+            <div class="control-group" id="controls3D" style="display: none;">
+                <div class="control-item">
+                    <label>
+                        <input type="checkbox" id="showKalman3D" checked>
+                        Show Kalman Data (Position X, Y, Z)
+                    </label>
+                </div>
+                <div class="control-item">
+                    <label>
+                        <input type="checkbox" id="showGPS3D" checked>
+                        Show GPS Data (GPS X, Y, Z)
+                    </label>
+                </div>
+                <div class="control-item">
+                    <label>
+                        <input type="checkbox" id="showBaro3D">
+                        Show Barometer Altitude
+                    </label>
+                </div>
+            </div>
+
+            <!-- 2D Mode Controls -->
+            <div class="control-group" id="controls2D">
                 <div class="control-item">
                     <label for="dataType">Kalman Data Type</label>
                     <div class="multiselect-wrapper" id="dataTypeWrapper">

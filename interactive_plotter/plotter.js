@@ -249,8 +249,9 @@
 	];
 	
 	function render3D() {
-		const dataTypes = getSel('dataType'); // Array of selected data types
-		const rawTypes = getSel('rawData'); // Array of selected raw data types
+		const showKalman = document.getElementById('showKalman3D').checked;
+		const showGPS = document.getElementById('showGPS3D').checked;
+		const showBaro = document.getElementById('showBaro3D').checked;
 		const from = getSel('fsmFrom');
 		const to = getSel('fsmTo');
 		const fromIdx = fsmIndexMap[from] ?? -1;
@@ -258,15 +259,8 @@
 
 		const traces = [];
 		
-		// For 3D, we need to map data types to x, y, z axes
-		// Available: pos_x, pos_y, pos_z, raw_gps_x, raw_gps_y, raw_gps_z, raw_baro_alt
-		
-		// Render Kalman position data
-		const hasPosX = dataTypes.includes('pos_x');
-		const hasPosY = dataTypes.includes('pos_y');
-		const hasPosZ = dataTypes.includes('pos_z');
-		
-		if (hasPosX && hasPosY && hasPosZ) {
+		// Render Kalman position data (always uses pos_x, pos_y, pos_z)
+		if (showKalman) {
 			const xVals = [];
 			const yVals = [];
 			const zVals = [];
@@ -295,12 +289,8 @@
 			}
 		}
 		
-		// Render GPS position data
-		const hasGPSX = rawTypes.includes('raw_gps_x');
-		const hasGPSY = rawTypes.includes('raw_gps_y');
-		const hasGPSZ = rawTypes.includes('raw_gps_z');
-		
-		if (hasGPSX && hasGPSY && hasGPSZ) {
+		// Render GPS position data (always uses raw_gps_x, raw_gps_y, raw_gps_z)
+		if (showGPS) {
 			const xVals = [];
 			const yVals = [];
 			const zVals = [];
@@ -344,9 +334,9 @@
 			}
 		}
 		
-		// Render barometer altitude as X-axis only (if selected)
-		// Note: This displays altitude along X-axis with Y=Z=0, showing vertical trajectory
-		if (rawTypes.includes('raw_baro_alt')) {
+		// Render barometer altitude as vertical axis (if selected)
+		// Note: This displays altitude along Z-axis (vertical) with X=Y=0, showing vertical trajectory
+		if (showBaro) {
 			const xVals = [];
 			const yVals = [];
 			const zVals = [];
@@ -910,53 +900,25 @@
 		const toggleBtn = document.getElementById('toggleFSMLabels');
 		if (toggleBtn) toggleBtn.style.display = 'none';
 		
-		// Update available options in dropdowns for 3D mode
-		// Hide options that aren't applicable to 3D
-		const dataTypeDropdown = document.getElementById('dataTypeDropdown');
-		const rawDataDropdown = document.getElementById('rawDataDropdown');
+		// Show 3D controls, hide 2D controls
+		const controls3D = document.getElementById('controls3D');
+		const controls2D = document.getElementById('controls2D');
+		if (controls3D) controls3D.style.display = 'flex';
+		if (controls2D) controls2D.style.display = 'none';
 		
-		if (dataTypeDropdown) {
-			const options = dataTypeDropdown.querySelectorAll('.multiselect-option');
-			options.forEach(opt => {
-				const value = opt.querySelector('input').value;
-				// Only show position options in 3D
-				if (value === 'pos_x' || value === 'pos_y' || value === 'pos_z') {
-					opt.style.display = 'flex';
-				} else {
-					opt.style.display = 'none';
-				}
-			});
+		// Set up event listeners for 3D checkboxes
+		const showKalman3D = document.getElementById('showKalman3D');
+		const showGPS3D = document.getElementById('showGPS3D');
+		const showBaro3D = document.getElementById('showBaro3D');
+		
+		if (showKalman3D) {
+			showKalman3D.onchange = onSelectionsChange;
 		}
-		
-		if (rawDataDropdown) {
-			const options = rawDataDropdown.querySelectorAll('.multiselect-option');
-			options.forEach(opt => {
-				const value = opt.querySelector('input').value;
-				// Only show GPS and barometer in 3D
-				if (value === 'raw_gps_x' || value === 'raw_gps_y' || value === 'raw_gps_z' || value === 'raw_baro_alt') {
-					opt.style.display = 'flex';
-				} else {
-					opt.style.display = 'none';
-				}
-			});
-			
-			// Auto-select pos_x, pos_y, pos_z and GPS x, y, z by default in 3D mode
-			if (dataTypeDropdown) {
-				['pos_x', 'pos_y', 'pos_z'].forEach(val => {
-					const cb = dataTypeDropdown.querySelector(`input[value="${val}"]`);
-					if (cb) cb.checked = true;
-				});
-			}
-			
-			['raw_gps_x', 'raw_gps_y', 'raw_gps_z'].forEach(val => {
-				const cb = rawDataDropdown.querySelector(`input[value="${val}"]`);
-				if (cb) cb.checked = true;
-			});
-			updateMultiSelectDisplay('rawDataWrapper', 'rawDataButton', 'rawDataCount');
+		if (showGPS3D) {
+			showGPS3D.onchange = onSelectionsChange;
 		}
-		
-		if (dataTypeDropdown) {
-			updateMultiSelectDisplay('dataTypeWrapper', 'dataTypeButton', 'dataTypeCount');
+		if (showBaro3D) {
+			showBaro3D.onchange = onSelectionsChange;
 		}
 	}
 	
@@ -964,6 +926,12 @@
 		// Show FSM labels button in 2D mode
 		const toggleBtn = document.getElementById('toggleFSMLabels');
 		if (toggleBtn) toggleBtn.style.display = '';
+		
+		// Show 2D controls, hide 3D controls
+		const controls3D = document.getElementById('controls3D');
+		const controls2D = document.getElementById('controls2D');
+		if (controls3D) controls3D.style.display = 'none';
+		if (controls2D) controls2D.style.display = 'flex';
 		
 		// Show all options in 2D mode
 		const dataTypeDropdown = document.getElementById('dataTypeDropdown');
