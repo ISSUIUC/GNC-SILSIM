@@ -92,6 +92,12 @@
 	let pollTimer = null;
 	let showFSMLabels = false;
 	let viewMode = '2D'; // '2D' or '3D'
+	let gpsViewActive = false;
+	let map = null;
+	let gpsPolyline = null;
+	let launchMarker = null;
+	let cesiumViewer = null;
+	let cesiumEntityCollection = null;
 	
 	// Performance optimization: cache FSM order indices
 	const fsmIndexMap = {};
@@ -430,8 +436,14 @@
 		
 		updateInfoPanel();
 	}
-	
+
 	function render() {
+		// If GPS view is active, render map instead of plot
+		if (gpsViewActive) {
+			renderGPSView();
+			return;
+		}
+		
 		// Route to appropriate render function based on view mode
 		if (viewMode === '3D') {
 			render3D();
@@ -458,12 +470,12 @@
 					yVals.push(filteredData[i][dataType]);
 				}
 				
-				traces.push({
+		traces.push({
 					x: xVals,
 					y: yVals,
-					type: 'scatter',
-					mode: 'lines+markers',
-					name: dataLabels[dataType] || dataType,
+			type: 'scatter',
+			mode: 'lines+markers',
+			name: dataLabels[dataType] || dataType,
 					line: { color: traceColors[idx % traceColors.length], width: 2 },
 					marker: { size: 3, color: traceColors[idx % traceColors.length] }
 				});
@@ -485,7 +497,7 @@
 					const r = data[i];
 					
 					// Check FSM range
-					if (r.fsm && r.fsm !== 'nan') {
+				if (r.fsm && r.fsm !== 'nan') {
 						const idx = fsmIndexMap[r.fsm];
 						if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
 					}
@@ -512,7 +524,7 @@
 						}
 					} else {
 						// Regular raw data
-						const v = r[rawType];
+				const v = r[rawType];
 						if (v !== undefined && !Number.isNaN(v) && v !== 'nan') {
 							value = v * multiplier;
 						}
@@ -527,14 +539,14 @@
 				if (rawX.length > 0) {
 					// Use different colors for raw data, offset from Kalman colors
 					const colorIdx = (dataTypes.length + rawIdx) % traceColors.length;
-					traces.push({
+			traces.push({
 						x: rawX,
 						y: rawY,
-						type: 'scatter',
-						mode: 'lines',
-						name: dataLabels[rawType] || rawType,
+				type: 'scatter',
+				mode: 'lines',
+				name: dataLabels[rawType] || rawType,
 						line: { color: traceColors[colorIdx], width: 1, dash: 'dash' },
-						opacity: 0.7
+				opacity: 0.7
 					});
 				}
 			});
@@ -608,7 +620,7 @@
 		const title = dataTypes.length > 1 
 			? `Multiple Data Types vs Time`
 			: `${dataLabels[firstDataType] || firstDataType} vs Time`;
-		
+
 		const layout = {
 			title: { text: title, font: { size: 20, color: '#2c3e50' } },
 			xaxis: { title: 'Time (seconds)', gridcolor: '#e9ecef', gridwidth: 1 },
@@ -678,14 +690,14 @@
 		}
 		
 		renderTimer = setTimeout(() => {
-			try {
-				filterBySelections();
+		try {
+			filterBySelections();
 				// Use requestAnimationFrame for smoother rendering
 				requestAnimationFrame(() => {
-					render();
+			render();
 				});
-			} catch (e) {
-				console.error(e);
+		} catch (e) {
+			console.error(e);
 			}
 		}, 50); // 50ms debounce - fast enough to feel instant, but prevents excessive renders
 	}
@@ -765,7 +777,7 @@
 			if (countSpan) countSpan.textContent = `(${count})`;
 		}
 	}
-	
+
 	function setupControls() {
 		// Setup multi-select dropdowns
 		setupMultiSelect('dataTypeWrapper', 'dataTypeButton', 'dataTypeDropdown', 'dataTypeCount');
@@ -793,6 +805,10 @@
 				await fetchResults();
 				filterBySelections();
 				render();
+				// Update GPS view if active
+				if (gpsViewActive && map) {
+					renderGPSView();
+				}
 			};
 			es.onerror = (e) => {
 				console.warn('[SSE] error', e);
@@ -813,6 +829,10 @@
 				data = payload.rows || [];
 				filterBySelections();
 				render();
+				// Update GPS view if active
+				if (gpsViewActive && map) {
+					renderGPSView();
+				}
 			}
 		} catch {}
 	}
@@ -851,6 +871,29 @@
 
 	// Expose reset for the button
 	window.resetView = function resetView() {
+		if (gpsViewActive && cesiumViewer) {
+			// Reset Cesium camera to view all GPS points
+			if (cesiumEntityCollection && cesiumEntityCollection.values.length > 0) {
+				const positions = [];
+				cesiumEntityCollection.values.forEach(entity => {
+					if (entity.polyline && entity.polyline.positions) {
+						const polyPositions = entity.polyline.positions.getValue();
+						if (Array.isArray(polyPositions)) {
+							positions.push(...polyPositions);
+						}
+					}
+				});
+				if (positions.length > 0) {
+					const boundingSphere = Cesium.BoundingSphere.fromPoints(positions);
+					cesiumViewer.camera.flyToBoundingSphere(boundingSphere, {
+						duration: 1.0,
+						offset: new Cesium.HeadingPitchRange(0, -0.5, boundingSphere.radius * 1.5)
+					});
+				}
+			}
+			return;
+		}
+		
 		if (viewMode === '3D') {
 			// Reset 3D camera view
 			Plotly.relayout('plot', {
@@ -863,6 +906,382 @@
 			Plotly.relayout('plot', { 'xaxis.autorange': true, 'yaxis.autorange': true });
 		}
 	};
+	
+	// Toggle GPS View
+	window.toggleGPSView = function toggleGPSView() {
+		gpsViewActive = !gpsViewActive;
+		const btn = document.getElementById('gpsViewBtn');
+		const plotDiv = document.getElementById('plot');
+		const mapDiv = document.getElementById('map');
+		
+		if (gpsViewActive) {
+			btn.textContent = 'Plot View';
+			// Show Cesium, hide plot and map
+			const cesiumDiv = document.getElementById('cesiumContainer');
+			if (plotDiv) plotDiv.style.display = 'none';
+			if (mapDiv) mapDiv.style.display = 'none';
+			if (cesiumDiv) {
+				cesiumDiv.style.display = 'block';
+				cesiumDiv.classList.add('gps-view-active');
+			}
+			renderGPSView();
+		} else {
+			btn.textContent = 'GPS View';
+			// Show plot normally, hide Cesium
+			const cesiumDiv = document.getElementById('cesiumContainer');
+			if (plotDiv) plotDiv.style.display = 'block';
+			if (mapDiv) mapDiv.style.display = 'none';
+			if (cesiumDiv) {
+				cesiumDiv.style.display = 'none';
+				cesiumDiv.classList.remove('gps-view-active');
+			}
+			// Re-render the regular 3D view
+			hasRendered = false;
+			onSelectionsChange();
+		}
+	};
+	
+	function initMap() {
+		// Initialize map centered on launch coordinates
+		if (LAUNCH_LAT_DEG === null || LAUNCH_LON_DEG === null) {
+			console.error('[GPS View] Launch coordinates not initialized');
+			return;
+		}
+		
+		map = L.map('map').setView([LAUNCH_LAT_DEG, LAUNCH_LON_DEG], 15);
+		
+		// Add OpenStreetMap tiles
+		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			attribution: '© OpenStreetMap contributors',
+			maxZoom: 19
+		}).addTo(map);
+		
+		// Add launch site marker
+		const launchIcon = L.divIcon({
+			className: 'launch-marker',
+			html: '<div style="background-color: #e74c3c; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+			iconSize: [20, 20],
+			iconAnchor: [10, 10]
+		});
+		
+		launchMarker = L.marker([LAUNCH_LAT_DEG, LAUNCH_LON_DEG], { icon: launchIcon })
+			.addTo(map)
+			.bindPopup('<b>Launch Site</b><br>Lat: ' + LAUNCH_LAT_DEG.toFixed(6) + '<br>Lon: ' + LAUNCH_LON_DEG.toFixed(6));
+	}
+	
+	function initCesium() {
+		if (cesiumViewer) return; // Already initialized
+		
+		if (LAUNCH_LAT_DEG === null || LAUNCH_LON_DEG === null) {
+			console.error('[GPS View] Launch coordinates not initialized');
+			return;
+		}
+		
+		const cesiumDiv = document.getElementById('cesiumContainer');
+		if (!cesiumDiv) {
+			console.error('[GPS View] Cesium container not found');
+			return;
+		}
+		
+		try {
+			// Initialize Cesium viewer with simpler configuration
+			// Use EllipsoidTerrainProvider for basic terrain (no external API needed)
+			cesiumViewer = new Cesium.Viewer('cesiumContainer', {
+				terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+				baseLayerPicker: false,
+				geocoder: false,
+				homeButton: false,
+				infoBox: false,
+				navigationHelpButton: false,
+				navigationInstructionsInitiallyVisible: false,
+				sceneModePicker: false,
+				selectionIndicator: false,
+				timeline: false,
+				animation: false,
+				fullscreenButton: false,
+				vrButton: false
+			});
+			
+			// Remove default imagery layers and add OpenStreetMap
+			cesiumViewer.imageryLayers.removeAll();
+			const osmLayer = cesiumViewer.imageryLayers.addImageryProvider(
+				new Cesium.OpenStreetMapImageryProvider({
+					url: 'https://a.tile.openstreetmap.org/'
+				})
+			);
+			
+			// Set initial camera position looking down at the launch site
+			cesiumViewer.camera.setView({
+				destination: Cesium.Cartesian3.fromDegrees(
+					LAUNCH_LON_DEG,
+					LAUNCH_LAT_DEG,
+					1000 // Height in meters
+				),
+				orientation: {
+					heading: 0.0,
+					pitch: Cesium.Math.toRadians(-90), // Look straight down
+					roll: 0.0
+				}
+			});
+			
+			// Create entity collection for GPS trajectory
+			cesiumEntityCollection = cesiumViewer.entities;
+			
+			console.log('[GPS View] Cesium initialized successfully');
+		} catch (error) {
+			console.error('[GPS View] Error initializing Cesium:', error);
+			cesiumViewer = null;
+		}
+	}
+	
+	function renderGPSView() {
+		if (!data || data.length === 0) return;
+		
+		// Show Cesium container first, then initialize
+		const cesiumDiv = document.getElementById('cesiumContainer');
+		if (cesiumDiv) {
+			cesiumDiv.style.display = 'block';
+			cesiumDiv.classList.add('gps-view-active');
+		}
+		
+		// Initialize Cesium if not already done
+		if (!cesiumViewer) {
+			// Wait a bit for container to be visible
+			setTimeout(() => {
+				initCesium();
+				if (cesiumViewer) {
+					renderGPSData();
+				}
+			}, 100);
+            return;
+        }
+		
+		renderGPSData();
+	}
+	
+	function renderGPSData() {
+		if (!cesiumViewer || !data || data.length === 0) return;
+		
+		const from = getSel('fsmFrom');
+		const to = getSel('fsmTo');
+		const fromIdx = fsmIndexMap[from] ?? -1;
+		const toIdx = fsmIndexMap[to] ?? -1;
+		
+		// Collect GPS points with altitude
+		const gpsPoints = [];
+		let lastValidPoint = null;
+		let minAlt = Infinity;
+		let maxAlt = -Infinity;
+		let minLat = Infinity;
+		let maxLat = -Infinity;
+		let minLon = Infinity;
+		let maxLon = -Infinity;
+		
+		for (let i = 0; i < data.length; i++) {
+			const r = data[i];
+			
+			// Check FSM range
+			if (r.fsm && r.fsm !== 'nan') {
+				const idx = fsmIndexMap[r.fsm];
+				if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
+			}
+			
+			const lat = r.raw_gps_latitude;
+			const lon = r.raw_gps_longitude;
+			const alt = r.raw_gps_altitude;
+			
+			if (lat !== undefined && lon !== undefined && alt !== undefined &&
+			    !Number.isNaN(lat) && !Number.isNaN(lon) && !Number.isNaN(alt) &&
+			    lat !== 'nan' && lon !== 'nan' && alt !== 'nan') {
+				const latDeg = lat / 1e7;
+				const lonDeg = lon / 1e7;
+				gpsPoints.push([latDeg, lonDeg, alt, r.timestamp]);
+				lastValidPoint = [latDeg, lonDeg, alt, r.timestamp];
+				
+				if (alt < minAlt) minAlt = alt;
+				if (alt > maxAlt) maxAlt = alt;
+				if (latDeg < minLat) minLat = latDeg;
+				if (latDeg > maxLat) maxLat = latDeg;
+				if (lonDeg < minLon) minLon = lonDeg;
+				if (lonDeg > maxLon) maxLon = lonDeg;
+			}
+		}
+		
+		if (gpsPoints.length === 0) return;
+		
+		// Clear existing entities
+		cesiumEntityCollection.removeAll();
+		
+		// Create positions array for the polyline
+		const positions = [];
+		const colors = [];
+		
+		for (let i = 0; i < gpsPoints.length; i++) {
+			const [latDeg, lonDeg, alt, timestamp] = gpsPoints[i];
+			
+			// Convert to Cesium Cartesian3 (longitude, latitude, height)
+			positions.push(
+				Cesium.Cartesian3.fromDegrees(lonDeg, latDeg, alt)
+			);
+			
+			// Color based on altitude
+			const altRange = maxAlt - minAlt;
+			const normAlt = altRange > 0 ? (alt - minAlt) / altRange : 0.5;
+			const color = getAltitudeColorRGB(normAlt);
+			colors.push(
+				Cesium.Color.fromBytes(color.r, color.g, color.b, 255)
+			);
+		}
+		
+		// Create polyline segments with color-coded altitude
+		if (positions.length > 1) {
+			// Create segments with different colors based on altitude
+			for (let i = 0; i < positions.length - 1; i++) {
+				const color = colors[i];
+				cesiumEntityCollection.add({
+					polyline: {
+						positions: [positions[i], positions[i + 1]],
+						width: 5,
+						material: color.withAlpha(0.9),
+						clampToGround: false,
+						arcType: Cesium.ArcType.GEODESIC
+					}
+				});
+			}
+		}
+		
+		// Add launch site marker
+		cesiumEntityCollection.add({
+			position: Cesium.Cartesian3.fromDegrees(LAUNCH_LON_DEG, LAUNCH_LAT_DEG, GROUND_ALT),
+			point: {
+				pixelSize: 12,
+				color: Cesium.Color.RED,
+				outlineColor: Cesium.Color.WHITE,
+				outlineWidth: 2,
+				heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+			},
+			label: {
+				text: 'Launch Site',
+				font: '14pt sans-serif',
+				fillColor: Cesium.Color.WHITE,
+				outlineColor: Cesium.Color.BLACK,
+				outlineWidth: 2,
+				style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+				verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+				pixelOffset: new Cesium.Cartesian2(0, -32)
+			}
+		});
+		
+		// Add end position marker
+		if (lastValidPoint) {
+			const [endLat, endLon, endAlt] = lastValidPoint;
+			cesiumEntityCollection.add({
+				position: Cesium.Cartesian3.fromDegrees(endLon, endLat, endAlt),
+				point: {
+					pixelSize: 10,
+					color: Cesium.Color.GREEN,
+					outlineColor: Cesium.Color.WHITE,
+					outlineWidth: 2,
+					heightReference: Cesium.HeightReference.NONE
+				},
+				label: {
+					text: 'End Position',
+					font: '14pt sans-serif',
+					fillColor: Cesium.Color.WHITE,
+					outlineColor: Cesium.Color.BLACK,
+					outlineWidth: 2,
+					style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+					verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+					pixelOffset: new Cesium.Cartesian2(0, -32)
+				}
+			});
+		}
+		
+		// Fly to the trajectory
+		if (positions.length > 0) {
+			const boundingSphere = Cesium.BoundingSphere.fromPoints(positions);
+			// Calculate a good viewing angle - look at the trajectory from an angle
+			const height = Math.max(boundingSphere.radius * 2, 500); // Minimum 500m height
+			cesiumViewer.camera.flyToBoundingSphere(boundingSphere, {
+				duration: 2.0,
+				offset: new Cesium.HeadingPitchRange(
+					0, // Heading (north)
+					Cesium.Math.toRadians(-45), // Pitch (45 degrees down from horizontal)
+					height // Distance from center
+				)
+			});
+		}
+		
+		// Ensure Cesium container is visible and resized
+		const cesiumDiv = document.getElementById('cesiumContainer');
+		if (cesiumDiv && cesiumViewer) {
+			cesiumDiv.style.display = 'block';
+			// Resize Cesium viewer to match container
+			setTimeout(() => {
+				if (cesiumViewer) {
+					cesiumViewer.resize();
+				}
+			}, 100);
+		}
+	}
+	
+	// Helper function to get RGB color from normalized altitude
+	function getAltitudeColorRGB(normalizedAlt) {
+		const t = Math.max(0, Math.min(1, normalizedAlt));
+		
+		if (t < 0.33) {
+			const localT = t / 0.33;
+			return {
+				r: Math.round(52 + (46 - 52) * localT),
+				g: Math.round(152 + (204 - 152) * localT),
+				b: Math.round(219 + (113 - 219) * localT)
+			};
+		} else if (t < 0.67) {
+			const localT = (t - 0.33) / 0.34;
+			return {
+				r: Math.round(46 + (243 - 46) * localT),
+				g: Math.round(204 + (156 - 204) * localT),
+				b: Math.round(113 + (18 - 113) * localT)
+			};
+		} else {
+			const localT = (t - 0.67) / 0.33;
+			return {
+				r: Math.round(243 + (231 - 243) * localT),
+				g: Math.round(156 + (76 - 156) * localT),
+				b: Math.round(18 + (60 - 18) * localT)
+			};
+		}
+	}
+	
+	// Helper function to get color based on normalized altitude (0-1)
+	function getAltitudeColor(normalizedAlt) {
+		// Clamp to 0-1 range
+		const t = Math.max(0, Math.min(1, normalizedAlt));
+		
+		// Color gradient: blue (low) -> green (medium-low) -> yellow (medium-high) -> red (high)
+		if (t < 0.33) {
+			// Blue to green
+			const localT = t / 0.33;
+			const r = Math.round(52 + (46 - 52) * localT);  // 52 -> 46
+			const g = Math.round(152 + (204 - 152) * localT);  // 152 -> 204
+			const b = Math.round(219 + (113 - 219) * localT);  // 219 -> 113
+			return `rgb(${r}, ${g}, ${b})`;
+		} else if (t < 0.67) {
+			// Green to yellow
+			const localT = (t - 0.33) / 0.34;
+			const r = Math.round(46 + (243 - 46) * localT);  // 46 -> 243
+			const g = Math.round(204 + (156 - 204) * localT);  // 204 -> 156
+			const b = Math.round(113 + (18 - 113) * localT);  // 113 -> 18
+			return `rgb(${r}, ${g}, ${b})`;
+		} else {
+			// Yellow to red
+			const localT = (t - 0.67) / 0.33;
+			const r = Math.round(243 + (231 - 243) * localT);  // 243 -> 231
+			const g = Math.round(156 + (76 - 156) * localT);  // 156 -> 76
+			const b = Math.round(18 + (60 - 18) * localT);  // 18 -> 60
+			return `rgb(${r}, ${g}, ${b})`;
+		}
+	}
 
 	// Toggle FSM labels visibility
 	window.toggleFSMLabels = function toggleFSMLabels() {
@@ -880,6 +1299,20 @@
 		// Update tab appearance
 		document.getElementById('view2D').classList.toggle('active', mode === '2D');
 		document.getElementById('view3D').classList.toggle('active', mode === '3D');
+		
+		// Show/hide GPS View button based on mode
+		const gpsViewBtn = document.getElementById('gpsViewBtn');
+		if (gpsViewBtn) {
+			if (mode === '3D') {
+				gpsViewBtn.style.display = '';
+			} else {
+				gpsViewBtn.style.display = 'none';
+				// If GPS view is active, switch back to plot view
+				if (gpsViewActive) {
+					toggleGPSView();
+				}
+			}
+		}
 		
 		// Show/hide controls based on mode
 		if (mode === '3D') {
@@ -899,6 +1332,10 @@
 		// Hide FSM labels button in 3D mode (not applicable)
 		const toggleBtn = document.getElementById('toggleFSMLabels');
 		if (toggleBtn) toggleBtn.style.display = 'none';
+		
+		// Show GPS View button in 3D mode
+		const gpsViewBtn = document.getElementById('gpsViewBtn');
+		if (gpsViewBtn) gpsViewBtn.style.display = '';
 		
 		// Show 3D controls, hide 2D controls
 		const controls3D = document.getElementById('controls3D');
