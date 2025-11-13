@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EKF Interactive Plotter</title>
+    <title>Arthur's Kalman Plotter</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         * {
@@ -202,14 +202,13 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚀 EKF Interactive Plotter</h1>
-            <p>Visualize your Extended Kalman Filter simulation results with interactive controls</p>
+            <h1>🚀 Arthur's Kalman Plotter</h1>
         </div>
 
         <div class="controls">
             <div class="control-group">
                 <div class="control-item">
-                    <label for="dataType">Data Type</label>
+                    <label for="dataType">Kalman Data Type</label>
                     <select id="dataType">
                         <option value="pos_x">Position X</option>
                         <option value="pos_y">Position Y</option>
@@ -220,7 +219,6 @@
                         <option value="acc_x">Acceleration X</option>
                         <option value="acc_y">Acceleration Y</option>
                         <option value="acc_z">Acceleration Z</option>
-                        <option value="altitude">Altitude</option>
                     </select>
                 </div>
 

@@ -26,6 +26,15 @@
 	let lastMtime = null;
 	let pollTimer = null;
 	let showFSMLabels = false;
+	
+	// Performance optimization: cache FSM order indices
+	const fsmIndexMap = {};
+	fsmOrder.forEach((state, idx) => {
+		fsmIndexMap[state] = idx;
+	});
+	
+	// Debounce timer for filter changes
+	let renderTimer = null;
 
 	async function fetchResults() {
 		console.log('[API] GET /api/results');
@@ -48,17 +57,26 @@
 		const dataType = getSel('dataType');
 		const from = getSel('fsmFrom');
 		const to = getSel('fsmTo');
-		const fromIdx = fsmOrder.indexOf(from);
-		const toIdx = fsmOrder.indexOf(to);
+		const fromIdx = fsmIndexMap[from] ?? -1;
+		const toIdx = fsmIndexMap[to] ?? -1;
 
-		filteredData = data.filter((row) => {
+		// Optimized filtering: use cached index map and early returns
+		filteredData = [];
+		for (let i = 0; i < data.length; i++) {
+			const row = data[i];
+			
+			// Check FSM range first (cheaper check)
 			if (row.fsm && row.fsm !== 'nan') {
-				const idx = fsmOrder.indexOf(row.fsm);
-				if (idx < fromIdx || idx > toIdx) return false;
+				const idx = fsmIndexMap[row.fsm];
+				if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
 			}
+			
+			// Check data value
 			const v = row[dataType];
-			return !(v === undefined || Number.isNaN(v) || v === 'nan');
-		});
+			if (v !== undefined && !Number.isNaN(v) && v !== 'nan') {
+				filteredData.push(row);
+			}
+		}
 		console.log(`[FILTER] kept=${filteredData.length}`);
 	}
 
@@ -93,31 +111,30 @@
 		const dataType = getSel('dataType');
 		const from = getSel('fsmFrom');
 		const to = getSel('fsmTo');
-		const fromIdx = fsmOrder.indexOf(from);
-		const toIdx = fsmOrder.indexOf(to);
+		const fromIdx = fsmIndexMap[from] ?? -1;
+		const toIdx = fsmIndexMap[to] ?? -1;
 
-		const values = data
-			.filter((r) => {
-				if (r.fsm && r.fsm !== 'nan') {
-					const idx = fsmOrder.indexOf(r.fsm);
-					if (idx < fromIdx || idx > toIdx) return false;
-				}
-				const v = r[dataType];
-				return !(v === undefined || Number.isNaN(v) || v === 'nan');
-			})
-			.map((r) => r[dataType])
-			.filter((v) => !Number.isNaN(v));
+		// Use already filtered data for value calculation (much faster)
+		const values = [];
+		for (let i = 0; i < filteredData.length; i++) {
+			const v = filteredData[i][dataType];
+			if (v !== undefined && !Number.isNaN(v)) {
+				values.push(v);
+			}
+		}
 
 		// Use reduce instead of spread operator to avoid stack overflow with large arrays
 		const maxVal = values.length ? values.reduce((a, b) => Math.max(a, b), -Infinity) : 1000;
 		const minVal = values.length ? values.reduce((a, b) => Math.min(a, b), Infinity) : 0;
 
+		// Compute markers - only iterate once through data
 		const markers = [];
 		let last = null;
-		for (const r of data) {
+		for (let i = 0; i < data.length; i++) {
+			const r = data[i];
 			if (r.fsm && r.fsm !== 'nan' && r.fsm !== last) {
-				const idx = fsmOrder.indexOf(r.fsm);
-				if (idx >= fromIdx && idx <= toIdx) {
+				const idx = fsmIndexMap[r.fsm];
+				if (idx !== undefined && idx >= fromIdx && idx <= toIdx) {
 					markers.push({ 
 						x: r.timestamp, 
 						label: formatFSMLabel(r.fsm),
@@ -135,13 +152,22 @@
 		const rawType = getSel('rawData');
 		const from = getSel('fsmFrom');
 		const to = getSel('fsmTo');
-		const fromIdx = fsmOrder.indexOf(from);
-		const toIdx = fsmOrder.indexOf(to);
+		const fromIdx = fsmIndexMap[from] ?? -1;
+		const toIdx = fsmIndexMap[to] ?? -1;
 
 		const traces = [];
+		
+		// Pre-extract x and y arrays in a single pass (much faster than multiple maps)
+		const xVals = [];
+		const yVals = [];
+		for (let i = 0; i < filteredData.length; i++) {
+			xVals.push(filteredData[i].timestamp);
+			yVals.push(filteredData[i][dataType]);
+		}
+		
 		traces.push({
-			x: filteredData.map((r) => r.timestamp),
-			y: filteredData.map((r) => r[dataType]),
+			x: xVals,
+			y: yVals,
 			type: 'scatter',
 			mode: 'lines+markers',
 			name: dataLabels[dataType] || dataType,
@@ -150,23 +176,39 @@
 		});
 
 		if (rawType !== 'none' && data[0] && data[0][rawType] !== undefined) {
-			const raw = data.filter((r) => {
+			// Filter raw data in a single pass
+			const rawX = [];
+			const rawY = [];
+			const multiplier = rawType.startsWith('raw_highg') ? 9.81 : 1;
+			
+			for (let i = 0; i < data.length; i++) {
+				const r = data[i];
+				
+				// Check FSM range
 				if (r.fsm && r.fsm !== 'nan') {
-					const idx = fsmOrder.indexOf(r.fsm);
-					if (idx < fromIdx || idx > toIdx) return false;
+					const idx = fsmIndexMap[r.fsm];
+					if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
 				}
+				
+				// Check value
 				const v = r[rawType];
-				return !(v === undefined || Number.isNaN(v) || v === 'nan');
-			});
-			traces.push({
-				x: raw.map((r) => r.timestamp),
-				y: raw.map((r) => rawType.startsWith('raw_highg') ? r[rawType] * 9.81 : r[rawType]),
-				type: 'scatter',
-				mode: 'lines',
-				name: dataLabels[rawType] || rawType,
-				line: { color: '#e74c3c', width: 1, dash: 'dash' },
-				opacity: 0.7
-			});
+				if (v !== undefined && !Number.isNaN(v) && v !== 'nan') {
+					rawX.push(r.timestamp);
+					rawY.push(v * multiplier);
+				}
+			}
+			
+			if (rawX.length > 0) {
+				traces.push({
+					x: rawX,
+					y: rawY,
+					type: 'scatter',
+					mode: 'lines',
+					name: dataLabels[rawType] || rawType,
+					line: { color: '#e74c3c', width: 1, dash: 'dash' },
+					opacity: 0.7
+				});
+			}
 		}
 
 		const fsmData = computeFSMMarkers();
@@ -177,10 +219,9 @@
 		const annotations = [];
 		
 		if (showFSMLabels && markers.length > 0) {
-			// Get y-axis range from the filtered data for label positioning
-			const yVals = filteredData.map((r) => r[dataType]).filter((v) => !Number.isNaN(v) && v !== undefined);
-			const yMin = yVals.length ? yVals.reduce((a, b) => Math.min(a, b), Infinity) : fsmData.yMin;
-			const yMax = yVals.length ? yVals.reduce((a, b) => Math.max(a, b), -Infinity) : fsmData.yMax;
+			// Use pre-computed yMin/yMax from computeFSMMarkers (already calculated from filteredData)
+			const yMin = fsmData.yMin;
+			const yMax = fsmData.yMax;
 			
 			markers.forEach((marker, idx) => {
 				// Add vertical line (shape) - use paper coordinates to span full plot height
@@ -258,35 +299,60 @@
 
 	function updateInfoPanel() {
 		const dataType = getSel('dataType');
-		// Use reduce instead of spread operator to avoid stack overflow with large arrays
-		const timestamps = data.map((r) => r.timestamp);
-		const maxTime = timestamps.reduce((a, b) => Math.max(a, b), -Infinity);
-		const minTime = timestamps.reduce((a, b) => Math.min(a, b), Infinity);
+		// Optimized: calculate min/max in a single pass
+		let maxTime = -Infinity;
+		let minTime = Infinity;
+		for (let i = 0; i < data.length; i++) {
+			const t = data[i].timestamp;
+			if (t > maxTime) maxTime = t;
+			if (t < minTime) minTime = t;
+		}
+		
 		document.getElementById('totalPoints').textContent = data.length.toLocaleString();
 		document.getElementById('filteredPoints').textContent = filteredData.length.toLocaleString();
 		document.getElementById('flightDuration').textContent = `${(maxTime - minTime).toFixed(2)}s`;
-		const vals = filteredData.map((r) => r[dataType]).filter((v) => !Number.isNaN(v));
-		if (vals.length) {
-			const maxVal = vals.reduce((a, b) => Math.max(a, b), -Infinity);
-			const minVal = vals.reduce((a, b) => Math.min(a, b), Infinity);
+		
+		// Calculate min/max values in a single pass
+		let maxVal = -Infinity;
+		let minVal = Infinity;
+		for (let i = 0; i < filteredData.length; i++) {
+			const v = filteredData[i][dataType];
+			if (v !== undefined && !Number.isNaN(v)) {
+				if (v > maxVal) maxVal = v;
+				if (v < minVal) minVal = v;
+			}
+		}
+		
+		if (maxVal !== -Infinity && minVal !== Infinity) {
 			document.getElementById('maxValue').textContent = maxVal.toFixed(2);
 			document.getElementById('minValue').textContent = minVal.toFixed(2);
 		} else {
 			document.getElementById('maxValue').textContent = 'N/A';
 			document.getElementById('minValue').textContent = 'N/A';
 		}
+		
 		const from = getSel('fsmFrom');
 		const to = getSel('fsmTo');
 		document.getElementById('currentFSM').textContent = from === to ? from : `${from} to ${to}`;
 	}
 
 	function onSelectionsChange() {
-		try {
-			filterBySelections();
-			render();
-		} catch (e) {
-			console.error(e);
+		// Debounce rapid filter changes for better performance
+		if (renderTimer) {
+			clearTimeout(renderTimer);
 		}
+		
+		renderTimer = setTimeout(() => {
+			try {
+				filterBySelections();
+				// Use requestAnimationFrame for smoother rendering
+				requestAnimationFrame(() => {
+					render();
+				});
+			} catch (e) {
+				console.error(e);
+			}
+		}, 50); // 50ms debounce - fast enough to feel instant, but prevents excessive renders
 	}
 
 	function setupControls() {
