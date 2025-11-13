@@ -1,11 +1,3 @@
-#!/bin/bash
-
-# ============================================================
-#  EKF Automation Script for Mac/Linux Machines
-#  Compiles, runs, and plots EKF results automatically
-#  Required to run from the root of the GNC-SILSIM
-# ============================================================
-
 set -e  # Exit on error
 
 RED='\033[0;31m'

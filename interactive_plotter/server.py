@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""
-Interactive Plotter Dev Server with JSON API and live updates.
- - Serves static files from repo root (so /interactive_plotter assets work)
- - GET /api/results -> JSON representation of output/results.csv
- - GET /events -> Server-Sent Events notifying when results.csv changes
- - Clean Ctrl-C shutdown
-"""
-
 import http.server
 import json
 import os
@@ -47,11 +38,9 @@ class EventBroker:
                 try:
                     h.wfile.write(b"data: update\n\n")
                     h.wfile.flush()
-                except (BrokenPipeError, ConnectionResetError, OSError):
-                    # Client disconnected - mark for removal
+                except (BrokenPipeError, ConnectionResetError, OSError, ValueError):
                     dead.append(h)
                 except Exception:
-                    # Other errors - also mark for removal
                     dead.append(h)
             for h in dead:
                 if h in self._clients:
@@ -62,26 +51,14 @@ class EventBroker:
         with self._lock:
             for h in self._clients:
                 try:
-                    # Close the connection socket to force disconnect
                     if hasattr(h, 'connection') and h.connection:
                         try:
                             h.connection.shutdown(socket.SHUT_RDWR)
-                        except (OSError, AttributeError):
+                        except (OSError, socket.error, AttributeError):
                             pass
                         try:
                             h.connection.close()
-                        except (OSError, AttributeError):
-                            pass
-                    # Also close file handles (these wrap the socket)
-                    if hasattr(h, 'wfile'):
-                        try:
-                            h.wfile.close()
-                        except (OSError, AttributeError):
-                            pass
-                    if hasattr(h, 'rfile'):
-                        try:
-                            h.rfile.close()
-                        except (OSError, AttributeError):
+                        except (OSError, socket.error, AttributeError):
                             pass
                 except Exception:
                     pass
@@ -121,17 +98,15 @@ def read_csv_as_json(csv_path: Path) -> dict:
 
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
-    # Disable noisy logging of each GET line
     def log_message(self, format: str, *args) -> None:
         return
 
     def end_headers(self) -> None:
-        # CORS + disable caching so clients always fetch fresh data
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
-    def do_GET(self) -> None:  # type: ignore[override]
+    def do_GET(self) -> None:  
         if self.path.startswith("/api/results"):
             try:
                 payload = read_csv_as_json(CSV_PATH)
@@ -143,9 +118,9 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                 try:
                     self.wfile.write(body)
                     self.wfile.flush()
-                    print(f"[API] Served /api/results (rows={len(payload.get('rows', []))})")
-                except (BrokenPipeError, ConnectionResetError, OSError):
-                    # Client disconnected before we finished sending - this is normal
+                    print(f"/api/results (rows={len(payload.get('rows', []))})")
+                except (BrokenPipeError, ConnectionResetError, OSError, ValueError):
+                    # Client disconnected or file closed before we finished sending - this is normal
                     pass
             except Exception as e:
                 # Log unexpected errors but don't crash
@@ -160,27 +135,22 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-cache")
             self.send_header("Connection", "keep-alive")
-            self.send_header("X-Accel-Buffering", "no")  # disable proxy buffering if any
+            self.send_header("X-Accel-Buffering", "no") 
             self.end_headers()
             broker.add(self)
             try:
-                print("[SSE] client connected")
+                print("client connected")
             except Exception:
                 pass
             try:
-                # Send an initial comment to establish stream
                 self.wfile.write(b": connected\n\n")
                 self.wfile.flush()
-                # Check shutdown more frequently (every 0.1s instead of 1s) for faster shutdown
                 while not shutdown_event.is_set():
                     if shutdown_event.wait(0.1):
                         break
-                # fallthrough to finally
-            except (BrokenPipeError, ConnectionResetError, OSError):
-                # Client disconnected - this is normal for SSE
+            except (BrokenPipeError, ConnectionResetError, OSError, ValueError):
                 pass
             except Exception:
-                # Other errors
                 pass
             finally:
                 broker.remove(self)
@@ -216,29 +186,27 @@ def file_watcher_thread() -> None:
 def main() -> None:
     parent_dir = Path(__file__).parent.parent
     os.chdir(parent_dir)
-
     server = http.server.ThreadingHTTPServer(("", PORT), RequestHandler)
-
-    def handle_sigint(signum, frame):  # type: ignore[no-untyped-def]
+    def handle_sigint(signum, frame):  
         print("\nStopping server...")
         shutdown_event.set()
-        # Close all SSE connections immediately to speed up shutdown
         broker.close_all()
-        try:
-            # Shutdown with a timeout - stop accepting new connections
-            server.shutdown()
-        finally:
-            server.server_close()
+        def shutdown_server():
+            try:
+                server.shutdown()
+            except Exception:
+                pass
+        
+        shutdown_thread = threading.Thread(target=shutdown_server)
+        shutdown_thread.start()
 
     signal.signal(signal.SIGINT, handle_sigint)
 
     watcher = threading.Thread(target=file_watcher_thread, daemon=True)
     watcher.start()
 
-    print(f"🚀 EKF Interactive Plotter Server")
-    print(f"📊 Serving at: http://localhost:{PORT}")
-    print(f"📁 Directory: {parent_dir}")
-    print(f"🌐 Opening browser...")
+    print(f"EKF Interactive Plotter Server")
+    print(f"Server running at: http://localhost:{PORT}")
     print(f"⏹️  Press Ctrl+C to stop the server")
     print("-" * 50)
 
@@ -246,12 +214,16 @@ def main() -> None:
 
     try:
         server.serve_forever()
+    except KeyboardInterrupt:
+        pass
     finally:
         shutdown_event.set()
-        # Close all SSE connections immediately
         broker.close_all()
-        server.server_close()
-        print("👋 Server stopped.")
+        try:
+            server.server_close()
+        except Exception:
+            pass
+        print("Server stopped.")
 
 
 if __name__ == "__main__":
