@@ -25,6 +25,7 @@
 	let hasRendered = false;
 	let lastMtime = null;
 	let pollTimer = null;
+	let showFSMLabels = false;
 
 	async function fetchResults() {
 		console.log('[API] GET /api/results');
@@ -68,6 +69,26 @@
 		return 'Value';
 	}
 
+	// Helper function to format FSM state names for display
+	function formatFSMLabel(fsmState) {
+		const labels = {
+			'STATE_IDLE': 'IDLE',
+			'STATE_FIRST_BOOST': 'FIRST BOOST',
+			'STATE_BURNOUT': 'BURNOUT',
+			'STATE_COAST': 'COAST',
+			'STATE_APOGEE': 'APOGEE',
+			'STATE_DROGUE_DEPLOY': 'DROGUE DEPLOY',
+			'STATE_DROGUE': 'DROGUE',
+			'STATE_MAIN_DEPLOY': 'MAIN DEPLOY',
+			'STATE_MAIN': 'MAIN',
+			'STATE_LANDED': 'LANDED',
+			'STATE_SUSTAINER_IGNITION': 'SUSTAINER IGNITION',
+			'STATE_SECOND_BOOST': 'SECOND BOOST',
+			'STATE_FIRST_SEPARATION': 'FIRST SEPARATION'
+		};
+		return labels[fsmState] || fsmState.replace('STATE_', '').replace(/_/g, ' ');
+	}
+
 	function computeFSMMarkers() {
 		const dataType = getSel('dataType');
 		const from = getSel('fsmFrom');
@@ -90,7 +111,6 @@
 		// Use reduce instead of spread operator to avoid stack overflow with large arrays
 		const maxVal = values.length ? values.reduce((a, b) => Math.max(a, b), -Infinity) : 1000;
 		const minVal = values.length ? values.reduce((a, b) => Math.min(a, b), Infinity) : 0;
-		const y = maxVal + (maxVal - minVal) * 0.1;
 
 		const markers = [];
 		let last = null;
@@ -98,12 +118,16 @@
 			if (r.fsm && r.fsm !== 'nan' && r.fsm !== last) {
 				const idx = fsmOrder.indexOf(r.fsm);
 				if (idx >= fromIdx && idx <= toIdx) {
-					markers.push({ x: r.timestamp, y, label: r.fsm });
+					markers.push({ 
+						x: r.timestamp, 
+						label: formatFSMLabel(r.fsm),
+						rawLabel: r.fsm
+					});
 				}
 				last = r.fsm;
 			}
 		}
-		return markers;
+		return { markers, yMin: minVal, yMax: maxVal };
 	}
 
 	function render() {
@@ -145,19 +169,67 @@
 			});
 		}
 
-		const markers = computeFSMMarkers();
-		if (markers.length) {
+		const fsmData = computeFSMMarkers();
+		const markers = fsmData.markers;
+		
+		// Add vertical lines for FSM state changes (toggled via showFSMLabels)
+		const shapes = [];
+		const annotations = [];
+		
+		if (showFSMLabels && markers.length > 0) {
+			// Get y-axis range from the filtered data for label positioning
+			const yVals = filteredData.map((r) => r[dataType]).filter((v) => !Number.isNaN(v) && v !== undefined);
+			const yMin = yVals.length ? yVals.reduce((a, b) => Math.min(a, b), Infinity) : fsmData.yMin;
+			const yMax = yVals.length ? yVals.reduce((a, b) => Math.max(a, b), -Infinity) : fsmData.yMax;
+			
+			markers.forEach((marker, idx) => {
+				// Add vertical line (shape) - use paper coordinates to span full plot height
+				shapes.push({
+					type: 'line',
+					xref: 'x',
+					yref: 'paper',  // Use paper coordinates (0-1) to span full plot height
+					x0: marker.x,
+					x1: marker.x,
+					y0: 0,
+					y1: 1,
+					line: {
+						color: '#f39c12',
+						width: 2,
+						dash: 'dash'
+					}
+				});
+				
+				annotations.push({
+					x: marker.x,
+					y: yMax + (yMax - yMin) * 0.05,
+					text: marker.label,
+					showarrow: false,
+					font: {
+						size: 11,
+						color: '#2c3e50',
+						family: 'Arial, sans-serif'
+					},
+					bgcolor: 'rgba(255, 255, 255, 0.8)',
+					bordercolor: '#f39c12',
+					borderwidth: 1,
+					borderpad: 4,
+					textangle: -45,
+					xanchor: 'left',
+					yanchor: 'bottom'
+				});
+			});
+			
+			// Add a trace for hover tooltips on the vertical lines
 			traces.push({
 				x: markers.map((m) => m.x),
-				y: markers.map((m) => m.y),
+				y: markers.map(() => yMax),
 				type: 'scatter',
 				mode: 'markers',
 				name: 'FSM Changes',
-				marker: { size: 10, color: '#f39c12', symbol: 'diamond', line: { color: '#e67e22', width: 2 } },
+				marker: { size: 8, color: '#f39c12', symbol: 'diamond', line: { color: '#e67e22', width: 2 }, opacity: 0.7 },
 				text: markers.map((m) => m.label),
-				textposition: 'top center',
-				textfont: { size: 12, color: '#2c3e50', family: 'Arial, sans-serif' },
-				hovertemplate: '<b>%{text}</b><br>Time: %{x:.2f}s<br><extra></extra>'
+				hovertemplate: '<b>%{text}</b><br>Time: %{x:.2f}s<br><extra></extra>',
+				showlegend: true
 			});
 		}
 
@@ -168,7 +240,9 @@
 			plot_bgcolor: 'white', paper_bgcolor: 'white',
 			font: { family: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif', size: 12, color: '#2c3e50' },
 			legend: { x: 0.02, y: 0.98, bgcolor: 'rgba(255,255,255,0.8)', bordercolor: '#e9ecef', borderwidth: 1 },
-			margin: { t: 60, r: 50, b: 60, l: 80 }
+			margin: { t: 60, r: 50, b: 60, l: 80 },
+			shapes: shapes,
+			annotations: annotations
 		};
 		const config = { responsive: true, displayModeBar: true, modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'], displaylogo: false };
 
@@ -289,5 +363,14 @@
 	// Expose reset for the button
 	window.resetView = function resetView() {
 		Plotly.relayout('plot', { 'xaxis.autorange': true, 'yaxis.autorange': true });
+	};
+
+	// Toggle FSM labels visibility
+	window.toggleFSMLabels = function toggleFSMLabels() {
+		showFSMLabels = !showFSMLabels;
+		const btn = document.getElementById('toggleFSMLabels');
+		btn.textContent = showFSMLabels ? 'Hide FSM Labels' : 'Show FSM Labels';
+		// Re-render to update labels
+		onSelectionsChange();
 	};
 })();
