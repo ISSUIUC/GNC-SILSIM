@@ -84,6 +84,30 @@
 		
 		return { x, y, z };
 	}
+	
+	// Convert local coordinates to GPS coordinates
+	// Input: pos_x (vertical/altitude), pos_y (east-west), pos_z (north-south) in meters
+	// Returns: { lat, lon, alt } where lat/lon are in degrees, alt is in meters
+	function convertLocalToGPS(pos_x, pos_y, pos_z) {
+		if (pos_x === undefined || pos_y === undefined || pos_z === undefined ||
+		    Number.isNaN(pos_x) || Number.isNaN(pos_y) || Number.isNaN(pos_z) ||
+		    LAUNCH_LAT === null || LAUNCH_LON === null || GROUND_ALT === null) {
+			return null;
+		}
+		
+		// Calculate meters per degree longitude at launch latitude
+		const metersPerDegLon = METERS_PER_DEG_LAT * Math.cos(LAUNCH_LAT_DEG * Math.PI / 180);
+		
+		// Convert from local coordinates to GPS
+		// pos_y is east-west (longitude direction)
+		const lonDeg = LAUNCH_LON_DEG + pos_y / metersPerDegLon;
+		// pos_z is north-south (latitude direction)
+		const latDeg = LAUNCH_LAT_DEG + pos_z / METERS_PER_DEG_LAT;
+		// pos_x is vertical (altitude)
+		const alt = pos_x + GROUND_ALT;
+		
+		return { lat: latDeg, lon: lonDeg, alt: alt };
+	}
 
 	let data = [];
 	let filteredData = [];
@@ -258,8 +282,9 @@
 		const showKalman = document.getElementById('showKalman3D').checked;
 		const showGPS = document.getElementById('showGPS3D').checked;
 		const showBaro = document.getElementById('showBaro3D').checked;
-		const from = getSel('fsmFrom');
-		const to = getSel('fsmTo');
+		// Use 3D-specific FSM dropdowns if they exist, otherwise fall back to 2D dropdowns
+		const from = document.getElementById('fsmFrom3D') ? document.getElementById('fsmFrom3D').value : getSel('fsmFrom');
+		const to = document.getElementById('fsmTo3D') ? document.getElementById('fsmTo3D').value : getSel('fsmTo');
 		const fromIdx = fsmIndexMap[from] ?? -1;
 		const toIdx = fsmIndexMap[to] ?? -1;
 
@@ -272,8 +297,16 @@
 			const zVals = [];
 			const timeVals = [];
 			
-			for (let i = 0; i < filteredData.length; i++) {
-				const r = filteredData[i];
+			// Filter Kalman data using 3D FSM dropdowns
+			for (let i = 0; i < data.length; i++) {
+				const r = data[i];
+				
+				// Check FSM range
+				if (r.fsm && r.fsm !== 'nan') {
+					const idx = fsmIndexMap[r.fsm];
+					if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
+				}
+				
 				// Map: X position → Z axis (vertical), Y position → X axis, Z position → Y axis
 				xVals.push(r.pos_y);  // Y position on X axis (horizontal)
 				yVals.push(r.pos_z);  // Z position on Y axis (horizontal)
@@ -348,6 +381,7 @@
 			const zVals = [];
 			const timeVals = [];
 			
+			// Filter barometer data using 3D FSM dropdowns
 			for (let i = 0; i < data.length; i++) {
 				const r = data[i];
 				
@@ -630,7 +664,8 @@
 			legend: { x: 0.02, y: 0.98, bgcolor: 'rgba(255,255,255,0.8)', bordercolor: '#e9ecef', borderwidth: 1 },
 			margin: { t: 60, r: 50, b: 60, l: 80 },
 			shapes: shapes,
-			annotations: annotations
+			annotations: annotations,
+			hovermode: 'x unified' // Show all traces at the same x (timestamp) value
 		};
 		const config = { responsive: true, displayModeBar: true, modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'], displaylogo: false };
 
@@ -645,7 +680,9 @@
 	}
 
 	function updateInfoPanel() {
-		const dataType = getSel('dataType');
+		// Only update data statistics for 2D view
+		const is2DView = viewMode === '2D';
+		
 		// Optimized: calculate min/max in a single pass
 		let maxTime = -Infinity;
 		let minTime = Infinity;
@@ -659,28 +696,134 @@
 		document.getElementById('filteredPoints').textContent = filteredData.length.toLocaleString();
 		document.getElementById('flightDuration').textContent = `${(maxTime - minTime).toFixed(2)}s`;
 		
-		// Calculate min/max values in a single pass
-		let maxVal = -Infinity;
-		let minVal = Infinity;
-		for (let i = 0; i < filteredData.length; i++) {
-			const v = filteredData[i][dataType];
-			if (v !== undefined && !Number.isNaN(v)) {
-				if (v > maxVal) maxVal = v;
-				if (v < minVal) minVal = v;
-			}
-		}
-		
-		if (maxVal !== -Infinity && minVal !== Infinity) {
-			document.getElementById('maxValue').textContent = maxVal.toFixed(2);
-			document.getElementById('minValue').textContent = minVal.toFixed(2);
-		} else {
-			document.getElementById('maxValue').textContent = 'N/A';
-			document.getElementById('minValue').textContent = 'N/A';
-		}
-		
 		const from = getSel('fsmFrom');
 		const to = getSel('fsmTo');
 		document.getElementById('currentFSM').textContent = from === to ? from : `${from} to ${to}`;
+		
+		// Update data statistics for 2D view
+		if (is2DView) {
+			const dataTypes = getSel('dataType'); // Array of selected data types
+			const rawTypes = getSel('rawData'); // Array of selected raw data types
+			const statsContainer = document.getElementById('dataStatsContainer');
+			const statsList = document.getElementById('dataStatsList');
+			
+			// Collect all data types to show stats for
+			const allDataTypes = [];
+			
+			// Add Kalman data types
+			if (dataTypes.length > 0) {
+				dataTypes.forEach(dt => {
+					allDataTypes.push({
+						type: dt,
+						label: dataLabels[dt] || dt,
+						isRaw: false
+					});
+				});
+			}
+			
+			// Add raw data types (excluding 'none')
+			if (rawTypes.length > 0 && !rawTypes.includes('none')) {
+				rawTypes.forEach(rt => {
+					allDataTypes.push({
+						type: rt,
+						label: dataLabels[rt] || rt,
+						isRaw: true
+					});
+				});
+			}
+			
+			// Calculate and display stats for each data type
+			if (allDataTypes.length > 0) {
+				statsContainer.style.display = 'block';
+				statsList.innerHTML = '';
+				
+				allDataTypes.forEach(({ type, label, isRaw }) => {
+					let minVal = Infinity;
+					let maxVal = -Infinity;
+					let hasData = false;
+					
+					// Calculate min/max for this data type
+					const dataSource = isRaw ? data : filteredData;
+					const fromIdx = fsmIndexMap[from] ?? -1;
+					const toIdx = fsmIndexMap[to] ?? -1;
+					
+					for (let i = 0; i < dataSource.length; i++) {
+						const r = dataSource[i];
+						
+						// For raw data, check FSM range
+						if (isRaw && r.fsm && r.fsm !== 'nan') {
+							const idx = fsmIndexMap[r.fsm];
+							if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
+						}
+						
+						let value = null;
+						
+						// Handle GPS conversion types
+						if (type === 'raw_gps_x' || type === 'raw_gps_y' || type === 'raw_gps_z') {
+							const local = convertGPSToLocal(
+								r.raw_gps_latitude,
+								r.raw_gps_longitude,
+								r.raw_gps_altitude
+							);
+							
+							if (local) {
+								if (type === 'raw_gps_x') {
+									value = local.z; // X from altitude
+								} else if (type === 'raw_gps_y') {
+									value = local.x; // Y from longitude
+								} else if (type === 'raw_gps_z') {
+									value = local.y; // Z from latitude
+								}
+							}
+						} else {
+							// Regular data type
+							const multiplier = type.startsWith('raw_highg') ? 9.81 : 1;
+							const v = r[type];
+							if (v !== undefined && !Number.isNaN(v) && v !== 'nan') {
+								value = v * multiplier;
+							}
+						}
+						
+						if (value !== null && !Number.isNaN(value)) {
+							hasData = true;
+							if (value > maxVal) maxVal = value;
+							if (value < minVal) minVal = value;
+						}
+					}
+					
+					// Create stat item
+					const statItem = document.createElement('div');
+					statItem.className = 'data-stat-item';
+					
+					if (hasData && minVal !== Infinity && maxVal !== -Infinity) {
+						statItem.innerHTML = `
+							<span class="data-stat-label">${label}</span>
+							<div class="data-stat-values">
+								<span class="data-stat-min">Min: <span>${minVal.toFixed(2)}</span></span>
+								<span class="data-stat-max">Max: <span>${maxVal.toFixed(2)}</span></span>
+							</div>
+						`;
+					} else {
+						statItem.innerHTML = `
+							<span class="data-stat-label">${label}</span>
+							<div class="data-stat-values">
+								<span style="color: #6c757d;">No data</span>
+							</div>
+						`;
+					}
+					
+					statsList.appendChild(statItem);
+				});
+			} else {
+				statsContainer.style.display = 'none';
+			}
+		} else {
+			// Hide stats container in 3D view
+			const statsContainer = document.getElementById('dataStatsContainer');
+			if (statsContainer) {
+				statsContainer.style.display = 'none';
+			}
+		}
 	}
 
 	function onSelectionsChange() {
@@ -903,7 +1046,7 @@
 			});
 		} else {
 			// Reset 2D view
-			Plotly.relayout('plot', { 'xaxis.autorange': true, 'yaxis.autorange': true });
+		Plotly.relayout('plot', { 'xaxis.autorange': true, 'yaxis.autorange': true });
 		}
 	};
 	
@@ -926,7 +1069,7 @@
 			}
 			renderGPSView();
 		} else {
-			btn.textContent = 'GPS View';
+			btn.textContent = 'Map view (work in progress)';
 			// Show plot normally, hide Cesium
 			const cesiumDiv = document.getElementById('cesiumContainer');
 			if (plotDiv) plotDiv.style.display = 'block';
@@ -1062,91 +1205,160 @@
 	function renderGPSData() {
 		if (!cesiumViewer || !data || data.length === 0) return;
 		
-		const from = getSel('fsmFrom');
-		const to = getSel('fsmTo');
+		// Temporarily disabled Kalman data on map view due to crashes - only show GPS
+		// const showKalman = document.getElementById('showKalman3D').checked;
+		const showKalman = false; // Disabled for now
+		const showGPS = document.getElementById('showGPS3D').checked;
+		// Use 3D-specific FSM dropdowns if they exist, otherwise fall back to 2D dropdowns
+		const from = document.getElementById('fsmFrom3D') ? document.getElementById('fsmFrom3D').value : getSel('fsmFrom');
+		const to = document.getElementById('fsmTo3D') ? document.getElementById('fsmTo3D').value : getSel('fsmTo');
 		const fromIdx = fsmIndexMap[from] ?? -1;
 		const toIdx = fsmIndexMap[to] ?? -1;
-		
-		// Collect GPS points with altitude
-		const gpsPoints = [];
-		let lastValidPoint = null;
-		let minAlt = Infinity;
-		let maxAlt = -Infinity;
-		let minLat = Infinity;
-		let maxLat = -Infinity;
-		let minLon = Infinity;
-		let maxLon = -Infinity;
-		
-		for (let i = 0; i < data.length; i++) {
-			const r = data[i];
-			
-			// Check FSM range
-			if (r.fsm && r.fsm !== 'nan') {
-				const idx = fsmIndexMap[r.fsm];
-				if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
-			}
-			
-			const lat = r.raw_gps_latitude;
-			const lon = r.raw_gps_longitude;
-			const alt = r.raw_gps_altitude;
-			
-			if (lat !== undefined && lon !== undefined && alt !== undefined &&
-			    !Number.isNaN(lat) && !Number.isNaN(lon) && !Number.isNaN(alt) &&
-			    lat !== 'nan' && lon !== 'nan' && alt !== 'nan') {
-				const latDeg = lat / 1e7;
-				const lonDeg = lon / 1e7;
-				gpsPoints.push([latDeg, lonDeg, alt, r.timestamp]);
-				lastValidPoint = [latDeg, lonDeg, alt, r.timestamp];
-				
-				if (alt < minAlt) minAlt = alt;
-				if (alt > maxAlt) maxAlt = alt;
-				if (latDeg < minLat) minLat = latDeg;
-				if (latDeg > maxLat) maxLat = latDeg;
-				if (lonDeg < minLon) minLon = lonDeg;
-				if (lonDeg > maxLon) maxLon = lonDeg;
-			}
-		}
-		
-		if (gpsPoints.length === 0) return;
 		
 		// Clear existing entities
 		cesiumEntityCollection.removeAll();
 		
-		// Create positions array for the polyline
-		const positions = [];
-		const colors = [];
+		let allPositions = []; // For bounding sphere calculation
+		let lastValidGPSPoint = null;
+		let lastValidKalmanPoint = null;
 		
-		for (let i = 0; i < gpsPoints.length; i++) {
-			const [latDeg, lonDeg, alt, timestamp] = gpsPoints[i];
+		// Collect GPS points with altitude
+		if (showGPS) {
+			const gpsPoints = [];
+			let minAlt = Infinity;
+			let maxAlt = -Infinity;
 			
-			// Convert to Cesium Cartesian3 (longitude, latitude, height)
-			positions.push(
-				Cesium.Cartesian3.fromDegrees(lonDeg, latDeg, alt)
-			);
+			for (let i = 0; i < data.length; i++) {
+				const r = data[i];
+				
+				// Check FSM range
+				if (r.fsm && r.fsm !== 'nan') {
+					const idx = fsmIndexMap[r.fsm];
+					if (idx === undefined || idx < fromIdx || idx > toIdx) continue;
+				}
+				
+				const lat = r.raw_gps_latitude;
+				const lon = r.raw_gps_longitude;
+				const alt = r.raw_gps_altitude;
+				
+				if (lat !== undefined && lon !== undefined && alt !== undefined &&
+				    !Number.isNaN(lat) && !Number.isNaN(lon) && !Number.isNaN(alt) &&
+				    lat !== 'nan' && lon !== 'nan' && alt !== 'nan') {
+					const latDeg = lat / 1e7;
+					const lonDeg = lon / 1e7;
+					gpsPoints.push([latDeg, lonDeg, alt, r.timestamp]);
+					lastValidGPSPoint = [latDeg, lonDeg, alt, r.timestamp];
+					
+					if (alt < minAlt) minAlt = alt;
+					if (alt > maxAlt) maxAlt = alt;
+				}
+			}
 			
-			// Color based on altitude
-			const altRange = maxAlt - minAlt;
-			const normAlt = altRange > 0 ? (alt - minAlt) / altRange : 0.5;
-			const color = getAltitudeColorRGB(normAlt);
-			colors.push(
-				Cesium.Color.fromBytes(color.r, color.g, color.b, 255)
-			);
+			// Render GPS trajectory
+			if (gpsPoints.length > 1) {
+				const positions = [];
+				const colors = [];
+				
+				for (let i = 0; i < gpsPoints.length; i++) {
+					const [latDeg, lonDeg, alt, timestamp] = gpsPoints[i];
+					
+					// Convert to Cesium Cartesian3 (longitude, latitude, height)
+					const pos = Cesium.Cartesian3.fromDegrees(lonDeg, latDeg, alt);
+					positions.push(pos);
+					allPositions.push(pos);
+					
+					// Color based on altitude
+					const altRange = maxAlt - minAlt;
+					const normAlt = altRange > 0 ? (alt - minAlt) / altRange : 0.5;
+					const color = getAltitudeColorRGB(normAlt);
+					colors.push(
+						Cesium.Color.fromBytes(color.r, color.g, color.b, 255)
+					);
+				}
+				
+				// Create polyline segments with color-coded altitude
+				for (let i = 0; i < positions.length - 1; i++) {
+					const color = colors[i];
+					cesiumEntityCollection.add({
+						polyline: {
+							positions: [positions[i], positions[i + 1]],
+							width: 5,
+							material: color.withAlpha(0.9),
+							clampToGround: false,
+							arcType: Cesium.ArcType.GEODESIC
+						}
+					});
+				}
+			}
 		}
 		
-		// Create polyline segments with color-coded altitude
-		if (positions.length > 1) {
-			// Create segments with different colors based on altitude
-			for (let i = 0; i < positions.length - 1; i++) {
-				const color = colors[i];
-				cesiumEntityCollection.add({
-					polyline: {
-						positions: [positions[i], positions[i + 1]],
-						width: 5,
-						material: color.withAlpha(0.9),
-						clampToGround: false,
-						arcType: Cesium.ArcType.GEODESIC
+		// Collect and render Kalman position data
+		if (showKalman) {
+			const kalmanPoints = [];
+			let minAlt = Infinity;
+			let maxAlt = -Infinity;
+			
+			for (let i = 0; i < filteredData.length; i++) {
+				const r = filteredData[i];
+				
+				const pos_x = r.pos_x;
+				const pos_y = r.pos_y;
+				const pos_z = r.pos_z;
+				
+				if (pos_x !== undefined && pos_y !== undefined && pos_z !== undefined &&
+				    !Number.isNaN(pos_x) && !Number.isNaN(pos_y) && !Number.isNaN(pos_z)) {
+					// Convert Kalman local coordinates to GPS
+					const gps = convertLocalToGPS(pos_x, pos_y, pos_z);
+					
+					if (gps) {
+						kalmanPoints.push([gps.lat, gps.lon, gps.alt, r.timestamp]);
+						lastValidKalmanPoint = [gps.lat, gps.lon, gps.alt, r.timestamp];
+						
+						if (gps.alt < minAlt) minAlt = gps.alt;
+						if (gps.alt > maxAlt) maxAlt = gps.alt;
 					}
-				});
+				}
+			}
+			
+			// Render Kalman trajectory
+			if (kalmanPoints.length > 1) {
+				const positions = [];
+				const colors = [];
+				
+				for (let i = 0; i < kalmanPoints.length; i++) {
+					const [latDeg, lonDeg, alt, timestamp] = kalmanPoints[i];
+					
+					// Convert to Cesium Cartesian3 (longitude, latitude, height)
+					const pos = Cesium.Cartesian3.fromDegrees(lonDeg, latDeg, alt);
+					positions.push(pos);
+					allPositions.push(pos);
+					
+					// Color based on altitude (use blue/cyan colors to distinguish from GPS)
+					const altRange = maxAlt - minAlt;
+					const normAlt = altRange > 0 ? (alt - minAlt) / altRange : 0.5;
+					// Use a different color scheme for Kalman (blue to purple)
+					const t = Math.max(0, Math.min(1, normAlt));
+					const r = Math.round(52 + (138 - 52) * t);  // 52 -> 138
+					const g = Math.round(152 + (43 - 152) * t);  // 152 -> 43
+					const b = Math.round(219 + (226 - 219) * t); // 219 -> 226
+					colors.push(
+						Cesium.Color.fromBytes(r, g, b, 255)
+					);
+				}
+				
+				// Create polyline segments with color-coded altitude (dashed line to distinguish from GPS)
+				for (let i = 0; i < positions.length - 1; i++) {
+					const color = colors[i];
+					cesiumEntityCollection.add({
+						polyline: {
+							positions: [positions[i], positions[i + 1]],
+							width: 4,
+							material: color.withAlpha(0.8),
+							clampToGround: false,
+							arcType: Cesium.ArcType.GEODESIC
+						}
+					});
+				}
 			}
 		}
 		
@@ -1172,9 +1384,9 @@
 			}
 		});
 		
-		// Add end position marker
-		if (lastValidPoint) {
-			const [endLat, endLon, endAlt] = lastValidPoint;
+		// Add end position markers
+		if (lastValidGPSPoint) {
+			const [endLat, endLon, endAlt] = lastValidGPSPoint;
 			cesiumEntityCollection.add({
 				position: Cesium.Cartesian3.fromDegrees(endLon, endLat, endAlt),
 				point: {
@@ -1185,7 +1397,7 @@
 					heightReference: Cesium.HeightReference.NONE
 				},
 				label: {
-					text: 'End Position',
+					text: 'GPS End',
 					font: '14pt sans-serif',
 					fillColor: Cesium.Color.WHITE,
 					outlineColor: Cesium.Color.BLACK,
@@ -1197,9 +1409,33 @@
 			});
 		}
 		
-		// Fly to the trajectory
-		if (positions.length > 0) {
-			const boundingSphere = Cesium.BoundingSphere.fromPoints(positions);
+		if (lastValidKalmanPoint) {
+			const [endLat, endLon, endAlt] = lastValidKalmanPoint;
+			cesiumEntityCollection.add({
+				position: Cesium.Cartesian3.fromDegrees(endLon, endLat, endAlt),
+				point: {
+					pixelSize: 10,
+					color: Cesium.Color.CYAN,
+					outlineColor: Cesium.Color.WHITE,
+					outlineWidth: 2,
+					heightReference: Cesium.HeightReference.NONE
+				},
+				label: {
+					text: 'Kalman End',
+					font: '14pt sans-serif',
+					fillColor: Cesium.Color.WHITE,
+					outlineColor: Cesium.Color.BLACK,
+					outlineWidth: 2,
+					style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+					verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+					pixelOffset: new Cesium.Cartesian2(0, -32)
+				}
+			});
+		}
+		
+		// Fly to the trajectory (include both GPS and Kalman if available)
+		if (allPositions.length > 0) {
+			const boundingSphere = Cesium.BoundingSphere.fromPoints(allPositions);
 			// Calculate a good viewing angle - look at the trajectory from an angle
 			const height = Math.max(boundingSphere.radius * 2, 500); // Minimum 500m height
 			cesiumViewer.camera.flyToBoundingSphere(boundingSphere, {
@@ -1349,13 +1585,47 @@
 		const showBaro3D = document.getElementById('showBaro3D');
 		
 		if (showKalman3D) {
-			showKalman3D.onchange = onSelectionsChange;
+			showKalman3D.onchange = () => {
+				onSelectionsChange();
+				// Also update GPS view if active
+				if (gpsViewActive && cesiumViewer) {
+					renderGPSData();
+				}
+			};
 		}
 		if (showGPS3D) {
-			showGPS3D.onchange = onSelectionsChange;
+			showGPS3D.onchange = () => {
+				onSelectionsChange();
+				// Also update GPS view if active
+				if (gpsViewActive && cesiumViewer) {
+					renderGPSData();
+				}
+			};
 		}
 		if (showBaro3D) {
 			showBaro3D.onchange = onSelectionsChange;
+		}
+		
+		// Set up event listeners for 3D FSM dropdowns
+		const fsmFrom3D = document.getElementById('fsmFrom3D');
+		const fsmTo3D = document.getElementById('fsmTo3D');
+		if (fsmFrom3D) {
+			fsmFrom3D.addEventListener('change', () => {
+				onSelectionsChange();
+				// Also update GPS view if active
+				if (gpsViewActive && cesiumViewer) {
+					renderGPSData();
+				}
+			});
+		}
+		if (fsmTo3D) {
+			fsmTo3D.addEventListener('change', () => {
+				onSelectionsChange();
+				// Also update GPS view if active
+				if (gpsViewActive && cesiumViewer) {
+					renderGPSData();
+				}
+			});
 		}
 	}
 	

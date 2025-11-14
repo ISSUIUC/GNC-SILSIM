@@ -303,6 +303,82 @@
             font-weight: 600;
         }
 
+        .data-stats-container {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            grid-column: 1 / -1;
+        }
+
+        .data-stats-container h4 {
+            color: #2c3e50;
+            margin-bottom: 12px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-stats-list {
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .data-stats-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .data-stats-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .data-stats-list::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+
+        .data-stats-list::-webkit-scrollbar-thumb:hover {
+            background: #5568d3;
+        }
+
+        .data-stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+        }
+
+        .data-stat-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .data-stat-label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.95em;
+        }
+
+        .data-stat-values {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9em;
+        }
+
+        .data-stat-min, .data-stat-max {
+            color: #6c757d;
+        }
+
+        .data-stat-min span, .data-stat-max span {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
         .loading {
             text-align: center;
             padding: 50px;
@@ -401,6 +477,42 @@
                         <input type="checkbox" id="showBaro3D">
                         Show Barometer Altitude
                     </label>
+                </div>
+                <div class="control-item">
+                    <label for="fsmFrom3D">FSM State From</label>
+                    <select id="fsmFrom3D">
+                        <option value="STATE_IDLE" selected>IDLE</option>
+                        <option value="STATE_FIRST_BOOST">FIRST_BOOST</option>
+                        <option value="STATE_BURNOUT">BURNOUT</option>
+                        <option value="STATE_COAST">COAST</option>
+                        <option value="STATE_APOGEE">APOGEE</option>
+                        <option value="STATE_DROGUE_DEPLOY">DROGUE_DEPLOY</option>
+                        <option value="STATE_DROGUE">DROGUE</option>
+                        <option value="STATE_MAIN_DEPLOY">MAIN_DEPLOY</option>
+                        <option value="STATE_MAIN">MAIN</option>
+                        <option value="STATE_LANDED">LANDED</option>
+                        <option value="STATE_SUSTAINER_IGNITION">SUSTAINER_IGNITION</option>
+                        <option value="STATE_SECOND_BOOST">SECOND_BOOST</option>
+                        <option value="STATE_FIRST_SEPARATION">FIRST_SEPARATION</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label for="fsmTo3D">FSM State To</label>
+                    <select id="fsmTo3D">
+                        <option value="STATE_IDLE">IDLE</option>
+                        <option value="STATE_FIRST_BOOST">FIRST_BOOST</option>
+                        <option value="STATE_BURNOUT">BURNOUT</option>
+                        <option value="STATE_COAST">COAST</option>
+                        <option value="STATE_APOGEE">APOGEE</option>
+                        <option value="STATE_DROGUE_DEPLOY">DROGUE_DEPLOY</option>
+                        <option value="STATE_DROGUE">DROGUE</option>
+                        <option value="STATE_MAIN_DEPLOY">MAIN_DEPLOY</option>
+                        <option value="STATE_MAIN">MAIN</option>
+                        <option value="STATE_LANDED" selected>LANDED</option>
+                        <option value="STATE_SUSTAINER_IGNITION">SUSTAINER_IGNITION</option>
+                        <option value="STATE_SECOND_BOOST">SECOND_BOOST</option>
+                        <option value="STATE_FIRST_SEPARATION">FIRST_SEPARATION</option>
+                    </select>
                 </div>
             </div>
 
@@ -535,7 +647,7 @@
 
             <div class="button-group">
                 <button class="btn btn-secondary" onclick="resetView()">Reset View</button>
-                <button class="btn btn-secondary" id="gpsViewBtn" onclick="toggleGPSView()" style="display: none;">GPS View</button>
+                <button class="btn btn-secondary" id="gpsViewBtn" onclick="toggleGPSView()" style="display: none;">Map view (work in progress)</button>
                 <button class="btn btn-secondary" id="toggleFSMLabels" onclick="toggleFSMLabels()">Show FSM Labels</button>
             </div>
         </div>
@@ -561,16 +673,12 @@
                     <p id="flightDuration">-</p>
                 </div>
                 <div class="info-item">
-                    <h4>Max Value</h4>
-                    <p id="maxValue">-</p>
-                </div>
-                <div class="info-item">
-                    <h4>Min Value</h4>
-                    <p id="minValue">-</p>
-                </div>
-                <div class="info-item">
                     <h4>Current FSM</h4>
                     <p id="currentFSM">-</p>
+                </div>
+                <div class="data-stats-container" id="dataStatsContainer" style="display: none;">
+                    <h4>Data Statistics</h4>
+                    <div class="data-stats-list" id="dataStatsList"></div>
                 </div>
             </div>
         </div>
