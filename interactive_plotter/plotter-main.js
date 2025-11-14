@@ -173,8 +173,14 @@
 		}
 	}
 	
-	// Handle selection changes with debouncing
+	// Handle selection changes - only update immediately in 3D view, not 2D
 	function onSelectionsChange() {
+		// In 2D view, don't auto-update - user must click "Update View" button
+		if (viewMode === '2D') {
+			return;
+		}
+		
+		// In 3D view, update immediately
 		// Debounce rapid filter changes for better performance
 		if (renderTimer) {
 			clearTimeout(renderTimer);
@@ -182,13 +188,11 @@
 		
 		renderTimer = setTimeout(async () => {
 			try {
-				if (viewMode === '2D') {
-					// For large datasets, show loading during filtering
-					if (Common.data.length > 50000) {
-						Common.showLoading('Updating view...', 'Filtering data...');
-					}
-					await filterBySelections();
+				// For large datasets, show loading during filtering
+				if (Common.data.length > 50000) {
+					Common.showLoading('Updating view...', 'Filtering data...');
 				}
+				await filterBySelections();
 				// Use requestAnimationFrame for smoother rendering
 				requestAnimationFrame(() => {
 					render();
@@ -199,6 +203,26 @@
 			}
 		}, 50); // 50ms debounce
 	}
+	
+	// Update view function - called by "Update View" button in 2D view
+	window.updateView = async function updateView() {
+		if (viewMode !== '2D') return;
+		
+		try {
+			// For large datasets, show loading during filtering
+			if (Common.data.length > 50000) {
+				Common.showLoading('Updating view...', 'Filtering data...');
+			}
+			await filterBySelections();
+			// Use requestAnimationFrame for smoother rendering
+			requestAnimationFrame(() => {
+				render();
+			});
+		} catch (e) {
+			console.error(e);
+			Common.hideLoading();
+		}
+	};
 	
 	// Multi-select dropdown setup
 	function setupMultiSelect(wrapperId, buttonId, dropdownId, countId) {
@@ -376,9 +400,31 @@
 			
 			// Reset render state and re-render after controls are updated
 			hasRendered = false;
+			
+			// Hide Cesium container if switching to 2D
+			if (mode === '2D') {
+				const cesiumDiv = document.getElementById('cesiumContainer');
+				if (cesiumDiv) {
+					cesiumDiv.style.display = 'none';
+					cesiumDiv.classList.remove('gps-view-active');
+				}
+				const plotDiv = document.getElementById('plot');
+				if (plotDiv) plotDiv.style.display = 'block';
+			}
+			
 			// Use another requestAnimationFrame to ensure DOM is fully updated before rendering
-			requestAnimationFrame(() => {
-				onSelectionsChange();
+			requestAnimationFrame(async () => {
+				// For 2D view, we need to ensure filteredData is ready, then render directly
+				if (mode === '2D') {
+					// Make sure filteredData is up to date
+					if (filteredData.length === 0) {
+						await filterBySelections();
+					}
+					render();
+				} else {
+					// For 3D view, use the normal update path
+					onSelectionsChange();
+				}
 			});
 		});
 	};
@@ -387,6 +433,10 @@
 		// Hide FSM labels button in 3D mode
 		const toggleBtn = document.getElementById('toggleFSMLabels');
 		if (toggleBtn) toggleBtn.style.display = 'none';
+		
+		// Hide "Update View" button in 3D mode (only for 2D)
+		const updateViewBtn = document.getElementById('updateViewBtn');
+		if (updateViewBtn) updateViewBtn.style.display = 'none';
 		
 		// Show GPS View button in 3D mode
 		const gpsViewBtn = document.getElementById('gpsViewBtn');
@@ -449,6 +499,10 @@
 		const toggleBtn = document.getElementById('toggleFSMLabels');
 		if (toggleBtn) toggleBtn.style.display = '';
 		
+		// Show "Update View" button in 2D mode
+		const updateViewBtn = document.getElementById('updateViewBtn');
+		if (updateViewBtn) updateViewBtn.style.display = '';
+		
 		// Show 2D controls, hide 3D controls
 		const controls3D = document.getElementById('controls3D');
 		const controls2D = document.getElementById('controls2D');
@@ -474,11 +528,26 @@
 	}
 	
 	// Toggle FSM labels visibility
-	window.toggleFSMLabels = function toggleFSMLabels() {
+	window.toggleFSMLabels = async function toggleFSMLabels() {
 		showFSMLabels = !showFSMLabels;
 		const btn = document.getElementById('toggleFSMLabels');
 		btn.textContent = showFSMLabels ? 'Hide FSM Labels' : 'Show FSM Labels';
-		onSelectionsChange();
+		
+		// FSM labels toggle should update immediately in both 2D and 3D views
+		// In 2D view, we need to trigger a render directly (not through onSelectionsChange)
+		if (viewMode === '2D') {
+			try {
+				// Re-render with updated FSM labels visibility
+				requestAnimationFrame(() => {
+					render();
+				});
+			} catch (e) {
+				console.error(e);
+			}
+		} else {
+			// In 3D view, use the normal update path
+			onSelectionsChange();
+		}
 	};
 	
 	// Toggle GPS View

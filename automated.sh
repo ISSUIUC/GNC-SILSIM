@@ -10,7 +10,6 @@ INPUT_FILE="data/MIDAS Trimmed (AL2, CSV).csv"
 OUTPUT_FILE="output/results.csv"
 PLOT_RESULTS=true
 STOP_STATE="STATE_LANDED"
-INTERACTIVE_PLOT=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -30,17 +29,12 @@ while [[ $# -gt 0 ]]; do
             STOP_STATE="$2"
             shift 2
             ;;
-        --interactive)
-            INTERACTIVE_PLOT=true
-            shift
-            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
             echo "  -i, --input FILE     Input CSV file (default: data/MIDAS Trimmed (AL2, CSV).csv)"
             echo "  -o, --output FILE    Output CSV file (default: output/results.csv)"
             echo "  -s, --stop-state     FSM state to stop simulation at (default: STATE_LANDED)"
-            echo "  --interactive        Use interactive plotting (zoom/pan/select)"
             echo "  --no-plot           Skip plotting results"
             echo "  -h, --help          Show this help message"
             echo ""
@@ -48,7 +42,6 @@ while [[ $# -gt 0 ]]; do
             echo "  $0                                    # Use defaults"
             echo "  $0 -i data/sample_1k.csv -o output/results.csv   # Specify files"
             echo "  $0 -s STATE_COAST                    # Stop at coast phase"
-            echo "  $0 --interactive                      # Interactive zoom/pan plots"
             echo "  $0 --no-plot                         # Skip plotting"
             exit 0
             ;;
@@ -80,7 +73,6 @@ echo "  Input file:  $INPUT_FILE"
 echo "  Output file: $OUTPUT_FILE"
 echo "  Stop state:  $STOP_STATE"
 echo "  Plot results: $PLOT_RESULTS"
-echo "  Interactive: $INTERACTIVE_PLOT"
 echo ""
 
 echo -e "${YELLOW}Step 1: Building code...${NC}"
@@ -134,34 +126,17 @@ echo ""
 
 if [ "$PLOT_RESULTS" = true ]; then
     echo -e "${YELLOW}Step 3: Plotting results...${NC}"
-    if [ "$INTERACTIVE_PLOT" = true ]; then
-        if [ -f "plotter/plot_interactive.py" ]; then
-            echo -e "${BLUE}Launching interactive plot...${NC}"
-            python3 plotter/plot_interactive.py "$OUTPUT_FILE"
-            if [ $? -ne 0 ]; then
-                echo -e "${RED}Interactive plotting failed!${NC}"
-                echo "You can still view the results in: $OUTPUT_FILE"
-            else
-                echo -e "${GREEN}Interactive plot launched successfully!${NC}"
-            fi
+    if [ -f "plotter/plot_results.py" ]; then
+        python3 plotter/plot_results.py "$OUTPUT_FILE"
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}Plotting failed!${NC}"
+            echo "You can still view the results in: $OUTPUT_FILE"
         else
-            echo -e "${RED}Error: plotter/plot_interactive.py not found!${NC}"
-            echo "Falling back to standard plots..."
-            python3 plotter/plot_results.py "$OUTPUT_FILE"
+            echo -e "${GREEN}Plots generated successfully!${NC}"
         fi
     else
-        if [ -f "plotter/plot_results.py" ]; then
-            python3 plotter/plot_results.py "$OUTPUT_FILE"
-            if [ $? -ne 0 ]; then
-                echo -e "${RED}Plotting failed!${NC}"
-                echo "You can still view the results in: $OUTPUT_FILE"
-            else
-                echo -e "${GREEN}Plots generated successfully!${NC}"
-            fi
-        else
-            echo -e "${RED}Error: plotter/plot_results.py not found!${NC}"
-            echo "Results are available in: $OUTPUT_FILE"
-        fi
+        echo -e "${RED}Error: plotter/plot_results.py not found!${NC}"
+        echo "Results are available in: $OUTPUT_FILE"
     fi
 else
     echo -e "${YELLOW}Step 3: Skipping plots (--no-plot specified)${NC}"

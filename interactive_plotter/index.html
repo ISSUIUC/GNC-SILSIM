@@ -219,11 +219,13 @@
         .btn-primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
         }
 
         .btn-primary:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3d8f 100%);
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 6px 8px rgba(102, 126, 234, 0.4);
         }
 
         .btn-secondary {
@@ -693,6 +695,7 @@
 
             <div class="button-group">
                 <button class="btn btn-secondary" onclick="resetView()">Reset View</button>
+                <button class="btn btn-primary" id="updateViewBtn" onclick="updateView()" style="display: none;">Update View</button>
                 <button class="btn btn-secondary" id="gpsViewBtn" onclick="toggleGPSView()" style="display: none;">Map view (work in progress)</button>
                 <button class="btn btn-secondary" id="toggleFSMLabels" onclick="toggleFSMLabels()">Show FSM Labels</button>
             </div>

@@ -35,6 +35,13 @@ Finally, to create the graphs, run
 
 `python3 ./plotter/plot_results.py`
 
+## Interactive Plotter
+For a better plotting experience use the interactive plotter: a locally hosted plotter. It automatically updates plots when sim is run, and can be used to better compare data. From root run:
+
+python3 interactive_plotter/server.py
+
+Note: Map view in 3D plot is a work in progress and is prone to crashing so avoid using it for now.
+
 ## Automated (Windows)
 Alternatively, if you run ./automated.bat from the root of the folder, the program will automatically compile and run the code for you, generating all the graphs. The input data files can be changes in the file.
 
