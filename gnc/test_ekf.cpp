@@ -293,7 +293,7 @@ public:
             return;
         }
         
-        file << "timestamp,pos_x,pos_y,pos_z,vel_x,vel_y,vel_z,acc_x,acc_y,acc_z,altitude,fsm,raw_baro_alt,raw_highg_ax,raw_highg_ay,raw_highg_az" << std::endl;
+        file << "timestamp,pos_x,pos_y,pos_z,vel_x,vel_y,vel_z,acc_x,acc_y,acc_z,altitude,fsm,raw_gps_latitude,raw_gps_longitude,raw_gps_altitude,raw_baro_alt,raw_highg_ax,raw_highg_ay,raw_highg_az" << std::endl;
         
         for (size_t i = 0; i < results.size() && i < flight_data.size(); i++) {
             const KalmanData& result = results[i];
@@ -312,6 +312,9 @@ public:
                  << result.acceleration.az << ","
                  << result.altitude << ","
                  << fsmToString(data.fsm) << ","
+                 << data.gps.latitude << ","
+                 << data.gps.longitude << ","
+                 << data.gps.altitude << ","
                  << data.barometer_altitude << ","
                  << data.highg_ax << ","
                  << data.highg_ay << ","
