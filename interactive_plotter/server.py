@@ -109,6 +109,23 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self) -> None:  
         if self.path.startswith("/api/results"):
             try:
+                # Check if client only wants mtime (for caching optimization)
+                if "mtime_only=true" in self.path:
+                    mtime = CSV_PATH.stat().st_mtime if CSV_PATH.exists() else None
+                    payload = {"mtime": mtime}
+                    body = json.dumps(payload).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    try:
+                        self.wfile.write(body)
+                        self.wfile.flush()
+                    except (BrokenPipeError, ConnectionResetError, OSError, ValueError):
+                        pass
+                    return
+                
+                # Full data fetch
                 payload = read_csv_as_json(CSV_PATH)
                 body = json.dumps(payload).encode("utf-8")
                 self.send_response(200)

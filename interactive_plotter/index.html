@@ -243,6 +243,52 @@
             position: relative;
         }
 
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            border-radius: 8px;
+        }
+
+        .loading-spinner {
+            text-align: center;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.2em;
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .loading-progress {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
         #map {
             width: 100%;
             height: 100%;
@@ -653,6 +699,13 @@
         </div>
 
         <div class="plot-container">
+            <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <p class="loading-text">Loading data...</p>
+                    <p class="loading-progress" id="loadingProgress"></p>
+                </div>
+            </div>
             <div id="plot" style="width: 100%; height: 100%;"></div>
             <div id="map"></div>
             <div id="cesiumContainer"></div>
@@ -684,6 +737,9 @@
         </div>
     </div>
 
-    <script src="plotter.js" defer></script>
+    <script src="plotter-common.js" defer></script>
+    <script src="plotter-2d.js" defer></script>
+    <script src="plotter-3d.js" defer></script>
+    <script src="plotter-main.js" defer></script>
 </body>
 </html>
