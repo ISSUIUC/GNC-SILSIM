@@ -6,7 +6,7 @@
 
 #define sampleFreqDef 500.0f
 // #define sampleFreqDef 512.0f // sample frequency in Hz
-#define betaDef 0.1f // 2 * proportional gain
+#define betaDef 0.07f // 2 * proportional gain
 
 //============================================================================================
 // Functions
@@ -24,42 +24,6 @@ Madgwick::Madgwick()
     invSampleFreq = 1.0f / sampleFreqDef;
     anglesComputed = 0;
 }
-
-// float Madgwick::tilt()
-// {
-//     float tilt;
-
-//     // get congjuate
-//     float qprime0 = q0;
-//     float qprime1 = q1 * -1;
-//     float qprime2 = q2 * -1;
-//     float qprime3 = q3 * -1;
-
-//     // define p{0,0,0,1}
-//     float p0 = 0;
-//     float p1 = 0;
-//     float p3 = 1;
-//     float p2 = 0;
-
-//     // Quaternion p_prime = (*this) * p * q_prime;
-//     //(*this) * p
-//     float reta = q0 * p0 - q1 * p1 - q2 * p2 - q3 * p3;
-//     float retb = q0 * p1 + q1 * p0 + q2 * p3 - q3 * p2;
-//     float retc = q0 * p2 - q1 * p3 + q2 * p0 + q3 * p1;
-//     float retd = q0 * p3 + q1 * p2 - q2 * p1 + q3 * p0;
-
-//     // get p prime's d :)
-//     float pprime_d = reta * qprime3 + retb * qprime2 - retc * qprime1 + retd * qprime0;
-
-//     tilt = acos(pprime_d) * 57.29578f;
-
-//     if (isnan(tilt))
-//     {
-//         return 0;
-//     }
-
-//     return tilt;
-// }
 
 //-------------------------------------------------------------------------------------------
 // AHRS

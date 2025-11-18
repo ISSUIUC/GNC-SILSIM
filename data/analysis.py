@@ -335,7 +335,7 @@ def update_anim_sim(frame):
 
 
 # Choose frame indices: use all samples or subsample if too many
-max_frames = 80000
+max_frames = 8000
 N = len(ts)
 if N == 0:
     raise RuntimeError("No quaternion samples found")

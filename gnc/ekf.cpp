@@ -174,8 +174,8 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
 
     // ahrs update
     ahrs.AHRSupdate(orientation.gx, orientation.gy, orientation.gz,
-                    magnetometer.mx, magnetometer.my, magnetometer.mz,
                     acceleration.ax, acceleration.ay, acceleration.az,
+                    magnetometer.mx, magnetometer.my, magnetometer.mz,
                     dt);
 
     // Sensor Measurements
