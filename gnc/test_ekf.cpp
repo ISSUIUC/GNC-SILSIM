@@ -181,10 +181,14 @@ public:
                 row.orientation.angular_velocity.vy = toFloatOr(getValue(values, "orientation.angular_velocity.vy"), row.orientation.angular_velocity.vy);
                 row.orientation.angular_velocity.vz = toFloatOr(getValue(values, "orientation.angular_velocity.vz"), row.orientation.angular_velocity.vz);
 
-                row.orientation.quaternion.w = toFloatOr(getValue(values, "orientation.orientation_quaternion.w"), row.orientation.quaternion.w);
-                row.orientation.quaternion.x = toFloatOr(getValue(values, "orientation.orientation_quaternion.x"), row.orientation.quaternion.x);
-                row.orientation.quaternion.y = toFloatOr(getValue(values, "orientation.orientation_quaternion.y"), row.orientation.quaternion.y);
-                row.orientation.quaternion.z = toFloatOr(getValue(values, "orientation.orientation_quaternion.z"), row.orientation.quaternion.z);
+                row.magnetometer.mx = toFloatOr(getValue(values, "magnetometer.mx"), row.magnetometer.mx);
+                row.magnetometer.my = toFloatOr(getValue(values, "magnetometer.my"), row.magnetometer.my);
+                row.magnetometer.mz = toFloatOr(getValue(values, "magnetometer.mz"), row.magnetometer.mz);
+
+                // row.orientation.quaternion.w = toFloatOr(getValue(values, "orientation.orientation_quaternion.w"), row.orientation.quaternion.w);
+                // row.orientation.quaternion.x = toFloatOr(getValue(values, "orientation.orientation_quaternion.x"), row.orientation.quaternion.x);
+                // row.orientation.quaternion.y = toFloatOr(getValue(values, "orientation.orientation_quaternion.y"), row.orientation.quaternion.y);
+                // row.orientation.quaternion.z = toFloatOr(getValue(values, "orientation.orientation_quaternion.z"), row.orientation.quaternion.z);
 
                 {
                     std::string fsm_str = getValue(values, "fsm");

@@ -38,31 +38,6 @@ struct euler_t
     float yaw;
 };
 
-struct Quaternion
-{
-    float w, x, y, z;
-
-    static float dot(const Quaternion &q1, const Quaternion &q2)
-    {
-        return q1.w * q2.w + q1.x * q2.x + q1.y * q2.y + q1.z * q2.z;
-    }
-    float norm() const
-    {
-        return std::sqrt(w * w + x * x + y * y + z * z);
-    }
-
-    Quaternion normalized() const
-    {
-        float n = norm();
-        if (!(n > 0.0f) || !std::isfinite(n))
-        {
-            // Return identity quaternion if input is zero/invalid
-            return Quaternion{1.0f, 0.0f, 0.0f, 0.0f};
-        }
-        return Quaternion{w / n, x / n, y / n, z / n};
-    }
-};
-
 struct Orientation
 {
     bool has_data;
@@ -74,7 +49,6 @@ struct Orientation
     Velocity angular_velocity;
     Acceleration orientation_acceleration;
     Acceleration linear_acceleration;
-    Quaternion quaternion;
 
     float gx, gy, gz;
     float mx, my, mz;

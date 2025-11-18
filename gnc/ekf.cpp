@@ -1,6 +1,7 @@
 #include "ekf.h"
 #include "fsm_states.h" // for sim
 #include <iostream>
+#include <cmath>
 
 /**
  * The following program is the University of Illinois' Extended Kalman Filter, utilized for state estimation of
@@ -129,8 +130,8 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
     Eigen::Matrix<float, 3, 1> velocities_body;
     velocities_body << x_k(1, 0), x_k(4, 0), x_k(7, 0);
 
-    Quaternion q = orientation.quaternion.normalized();
-    GlobalToBodyQuat(q.w, q.x, q.y, q.z, velocities_body);
+    // GlobalToBodyQuat(q.w, q.x, q.y, q.z, velocities_body);
+    GlobalToBody(angles_rad, velocities_body);
     float vx_body = velocities_body(0, 0);
     float vy_body = velocities_body(1, 0);
     float vz_body = velocities_body(2, 0);
@@ -178,11 +179,11 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     (sensor_accel_global_g)(1, 0) = acceleration.ay - 0.065;
     (sensor_accel_global_g)(2, 0) = acceleration.az - 0.06;
 
-    // euler_t angles_rad = orientation.getEuler();
+    euler_t angles_rad = orientation.getEuler();
     //  angles_rad.yaw = -angles_rad.yaw; // coordinate frame match
-    Quaternion q = orientation.quaternion.normalized();
 
-    BodyToGlobalQuat(q.w, q.x, q.y, q.z, sensor_accel_global_g);
+    // BodyToGlobalQuat(q_acc.w, q_acc.x, q_acc.y, q_acc.z, sensor_accel_global_g);
+    BodyToGlobal(angles_rad, sensor_accel_global_g);
 
     float g_ms2;
     if ((FSM_state > FSMState::STATE_IDLE))
@@ -546,9 +547,8 @@ void EKF::compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen:
         ((Fay + Fty) / curr_mass_kg),
         ((Faz + Ftz) / curr_mass_kg);
 
-    Quaternion q = orientation.quaternion.normalized();
-    BodyToGlobalQuat(q.w, q.x, q.y, q.z, v_dot);
-    // BodyToGlobal(angles_rad, v_dot);
+    // BodyToGlobalQuat(q_v.w, q_v.x, q_v.y, q_v.z, v_dot);
+    BodyToGlobal(angles_rad, v_dot);
 
     xdot << x_k(1, 0), v_dot(0, 0) + gx,
         0.0,

@@ -92,37 +92,6 @@ inline std::vector<float> ECEF(float lat, float lon, float alt)
     return {x, y, z};
 }
 
-/*
-  def quat_mult(self, q1, q2):
-        w1, x1, y1, z1 = q1
-        w2, x2, y2, z2 = q2
-        return [
-            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-        ]
-  def to_global(self, p):
-        q = [self.q0, self.q1, self.q2, self.q3]
-        q_conj = [self.q0, -self.q1, -self.q2, -self.q3]
-
-        temp = self.quat_mult(q_conj, p)
-        p_global = self.quat_mult(temp, q)
-
-        return p_global
-
-    def to_body_frame(self, g):
-        q = [self.q0, self.q1, self.q2, self.q3]
-        q_conj = [self.q0, -self.q1, -self.q2, -self.q3]
-
-        temp = self.quat_mult(q, g)
-        p_body = self.quat_mult(temp, q_conj)
-
-        return p_body
-
-Should be like that.
-*/
-
 // helper: multiply two quaternions (w,x,y,z) returning (rw,rx,ry,rz)
 static inline void quat_mult_f(float w1, float x1, float y1, float z1,
                                float w2, float x2, float y2, float z2,

@@ -1,0 +1,7 @@
+#include <Madgwick.h>
+Madgwick filter;
+
+void updateOri(float ax, float ay, float az, float gyroX, float gyroY, float gyroZ, float dt)
+{
+    filter.updateIMU(-gyroZ, gyroY, gyroX, -az, ay, ax, dt);
+}
