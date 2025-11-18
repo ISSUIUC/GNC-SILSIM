@@ -151,7 +151,7 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
  * After updating the gain, the state estimate is updated.
  *
  */
-void EKF::update(Barometer barometer, Acceleration acceleration, Orientation orientation, Magnetometer magnetometer, FSMState FSM_state, GPS &gps)
+void EKF::update(Barometer barometer, Acceleration acceleration, Orientation orientation, Magnetometer magnetometer, FSMState FSM_state, GPS &gps, float dt)
 {
     // if on pad -> take last 10 barometer measurements for init state
     if (FSM_state == FSMState::STATE_IDLE)
@@ -173,10 +173,10 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     compute_kalman_gain();
 
     // ahrs update
-    ahrs.AHRSupdate(orientation.angular_velocity.vx * (M_PI / 180.0f), orientation.angular_velocity.vy * (M_PI / 180.0f), orientation.angular_velocity.vz * (M_PI / 180.0f),
+    ahrs.AHRSupdate(orientation.gx, orientation.gy, orientation.gz,
                     magnetometer.mx, magnetometer.my, magnetometer.mz,
                     acceleration.ax, acceleration.ay, acceleration.az,
-                    s_dt);
+                    dt);
 
     // Sensor Measurements
     Eigen::Matrix<float, 3, 1> sensor_accel_global_g = Eigen::Matrix<float, 3, 1>(Eigen::Matrix<float, 3, 1>::Zero());
@@ -275,7 +275,7 @@ void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration accelerati
         // setF(dt, orientation.roll, orientation.pitch, orientation.yaw);
         setQ(dt, sd);
         priori(dt, orientation, FSM_state);
-        update(barometer, acceleration, orientation, magnetometer, FSM_state, gps);
+        update(barometer, acceleration, orientation, magnetometer, FSM_state, gps, dt);
         compute_gps_inputs(gps, FSM_state); // testing GPS inputs
     }
 }
@@ -660,5 +660,4 @@ void EKF::reference_GPS(GPS &gps, FSMState fsm)
         gps_longitude_last = gps_longitude_original;
     }
 }
-
 EKF ekf;

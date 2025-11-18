@@ -177,6 +177,10 @@ public:
                 row.orientation.orientation_velocity.vy = toFloatOr(getValue(values, "orientation.orientation_velocity.vy"), row.orientation.orientation_velocity.vy);
                 row.orientation.orientation_velocity.vz = toFloatOr(getValue(values, "orientation.orientation_velocity.vz"), row.orientation.orientation_velocity.vz);
 
+                row.orientation.gx = toFloatOr(getValue(values, "orientation.gx"), row.orientation.gx);
+                row.orientation.gy = toFloatOr(getValue(values, "orientation.gy"), row.orientation.gy);
+                row.orientation.gz = toFloatOr(getValue(values, "orientation.gz"), row.orientation.gz);
+
                 row.orientation.angular_velocity.vx = toFloatOr(getValue(values, "orientation.angular_velocity.vx"), row.orientation.angular_velocity.vx);
                 row.orientation.angular_velocity.vy = toFloatOr(getValue(values, "orientation.angular_velocity.vy"), row.orientation.angular_velocity.vy);
                 row.orientation.angular_velocity.vz = toFloatOr(getValue(values, "orientation.angular_velocity.vz"), row.orientation.angular_velocity.vz);

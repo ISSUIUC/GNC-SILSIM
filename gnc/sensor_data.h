@@ -42,14 +42,13 @@ struct Orientation
 {
     bool has_data;
     std::string reading_type;
-    float yaw;
-    float pitch;
-    float roll;
+
     Velocity orientation_velocity;
     Velocity angular_velocity;
     Acceleration orientation_acceleration;
     Acceleration linear_acceleration;
 
+    float yaw, pitch, roll;
     float gx, gy, gz;
     float mx, my, mz;
     float temperature;

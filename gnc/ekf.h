@@ -24,7 +24,7 @@ public:
     void initialize(RocketSystems *args) override;
     // void priori();
     void priori(float dt, Orientation &orientation, FSMState fsm);
-    void update(Barometer barometer, Acceleration acceleration, Orientation orientation, Magnetometer magnetometer, FSMState state, GPS &gps) override;
+    void update(Barometer barometer, Acceleration acceleration, Orientation orientation, Magnetometer magnetometer, FSMState state, GPS &gps, float dt) override;
 
     void setQ(float dt, float sd);
     void setF(float dt, float w_x, float w_y, float w_z, FSMState fsm, float v_x, float v_y, float v_z);
