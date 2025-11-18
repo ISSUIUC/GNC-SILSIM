@@ -5,7 +5,9 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 (registers 3D projection)
 from matplotlib.animation import FuncAnimation
 
 # Load CSV (adjust filename if needed)
-data = pd.read_csv("MIDAS_booster.csv")
+# AL0 = sustainer
+# AL2 = booster
+data = pd.read_csv("MIDAS Trimmed (AL0, CSV).csv")
 
 # Filter for rows where sensor == "orientation"
 # data = data[data["sensor"] == "orientation"]
@@ -20,6 +22,7 @@ cols = [
     "orientation.orientation_quaternion.z",
     "orientation.has_data",
     "orientation.reading_type",
+    "fsm",
 ]
 
 for c in cols:
@@ -28,6 +31,36 @@ for c in cols:
 
 qdf = data[cols].copy()
 qdf.to_csv("orientation_quaternions.csv", index=False)
+
+# other_cols = ["orientation.gx", "orientation.gy", "orientation.gz"]
+# other = data[other_cols].copy()
+# other.to_csv("gxgygz.csv", index=False)
+
+# other_cols = [
+#     "orientation.angular_velocity.vx",
+#     "orientation.angular_velocity.vy",
+#     "orientation.angular_velocity.vz",
+# ]
+# other = data[other_cols].copy()
+# other.to_csv("ang_v_xyz.csv", index=False)
+
+# other_cols = [
+#     "magnetometer.mx",
+#     "magnetometer.my",
+#     "magnetometer.mz",
+# ]
+# other = data[other_cols].copy()
+# other.to_csv("mxmymz.csv", index=False)
+
+# other_cols = [
+#     "orientation.yaw",
+#     "orientation.pitch",
+#     "orientation.roll",
+# ]
+# other = data[other_cols].copy()
+# other.to_csv("yawpitchroll.csv", index=False)
+
+
 print(f"Filtered to {len(qdf)} rows with sensor='orientation'")
 
 # print(qdf["orientation.has_data"].head(30))
@@ -39,7 +72,7 @@ qw = qdf["orientation.orientation_quaternion.w"].to_numpy(dtype=float)
 qx = qdf["orientation.orientation_quaternion.x"].to_numpy(dtype=float)
 qy = qdf["orientation.orientation_quaternion.y"].to_numpy(dtype=float)
 qz = qdf["orientation.orientation_quaternion.z"].to_numpy(dtype=float)
-
+fsm = qdf["fsm"]
 
 delta_t_values = qdf["timestamp"].diff().dropna()
 # print(delta_t_values)
@@ -182,6 +215,7 @@ ax.set_title("Orientation Visualizer (Quaternion -> 3D)")
 edge_lines = [ax.plot([], [], [], color="black", linewidth=2)[0] for _ in edges]
 axis_lines = [ax.plot([], [], [], color=c, linewidth=3)[0] for c in ("r", "g", "b")]
 time_text = ax.text2D(0.02, 0.95, "", transform=ax.transAxes)
+fsm_text = ax.text2D(0.02, 0.90, "", transform=ax.transAxes)
 
 
 def init_anim():
@@ -234,6 +268,7 @@ def update_anim(frame):
     time_text.set_text(
         f"index={i}  timestamp={ts_disp:.3f}  q=({w:.3f},{x:.3f},{y:.3f},{z:.3f})"
     )
+    fsm_text.set_text(f"FSM: {fsm[i]}")
 
     if i % 50 == 0:
         print(f"  Frame {i}: q=({w:.3f},{x:.3f},{y:.3f},{z:.3f})")
@@ -242,7 +277,7 @@ def update_anim(frame):
 
 
 # Choose frame indices: use all samples or subsample if too many
-max_frames = 800
+max_frames = 8000
 N = len(ts)
 if N == 0:
     raise RuntimeError("No quaternion samples found")

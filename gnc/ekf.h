@@ -8,6 +8,7 @@
 #include "constants.h"
 #include "aero_coeff.h"
 #include "rotation.h"
+#include "Madgwick.h"
 
 #define NUM_STATES 9
 #define NUM_SENSOR_INPUTS 4
@@ -23,7 +24,7 @@ public:
     void initialize(RocketSystems *args) override;
     // void priori();
     void priori(float dt, Orientation &orientation, FSMState fsm);
-    void update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState state, GPS &gps) override;
+    void update(Barometer barometer, Acceleration acceleration, Orientation orientation, Magnetometer magnetometer, FSMState state, GPS &gps) override;
 
     void setQ(float dt, float sd);
     void setF(float dt, float w_x, float w_y, float w_z, FSMState fsm, float v_x, float v_y, float v_z);
@@ -41,7 +42,7 @@ public:
 
     void getThrust(float timestamp, const euler_t &angles, FSMState FSM_state, Eigen::Vector3f &thrust_out);
 
-    void tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState state, GPS &gps);
+    void tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, Magnetometer magnetometer, FSMState state, GPS &gps);
 
     bool should_reinit = false;
     float current_vel = 0.0f;
@@ -64,6 +65,9 @@ private:
     KalmanState kalman_state;
     FSMState last_fsm = FSMState::STATE_IDLE;
     float stage_timestamp = 0;
+
+    // AHRS estimator
+    Madgwick ahrs;
 
     Eigen::Matrix<float, 3, 1> init_accel = Eigen::Matrix<float, 3, 1>::Zero();
     Buffer<float, ALTITUDE_BUFFER_SIZE> alt_buffer;

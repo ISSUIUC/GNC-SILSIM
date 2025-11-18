@@ -2,6 +2,7 @@
 #include "fsm_states.h" // for sim
 #include <iostream>
 #include <cmath>
+#include <Madgwick.h>
 
 /**
  * The following program is the University of Illinois' Extended Kalman Filter, utilized for state estimation of
@@ -150,7 +151,7 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
  * After updating the gain, the state estimate is updated.
  *
  */
-void EKF::update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState FSM_state, GPS &gps)
+void EKF::update(Barometer barometer, Acceleration acceleration, Orientation orientation, Magnetometer magnetometer, FSMState FSM_state, GPS &gps)
 {
     // if on pad -> take last 10 barometer measurements for init state
     if (FSM_state == FSMState::STATE_IDLE)
@@ -170,6 +171,12 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
 
     // Kalman Gain
     compute_kalman_gain();
+
+    // ahrs update
+    ahrs.AHRSupdate(orientation.angular_velocity.vx * (M_PI / 180.0f), orientation.angular_velocity.vy * (M_PI / 180.0f), orientation.angular_velocity.vz * (M_PI / 180.0f),
+                    magnetometer.mx, magnetometer.my, magnetometer.mz,
+                    acceleration.ax, acceleration.ay, acceleration.az,
+                    s_dt);
 
     // Sensor Measurements
     Eigen::Matrix<float, 3, 1> sensor_accel_global_g = Eigen::Matrix<float, 3, 1>(Eigen::Matrix<float, 3, 1>::Zero());
@@ -221,6 +228,11 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     state.velocity = (Velocity){kalman_state.state_est_vel_x, kalman_state.state_est_vel_y, kalman_state.state_est_vel_z};
     state.acceleration = (Acceleration){kalman_state.state_est_accel_x, kalman_state.state_est_accel_y, kalman_state.state_est_accel_z};
 
+    state.q0 = ahrs.q0;
+    state.q1 = ahrs.q1;
+    state.q2 = ahrs.q2;
+    state.q3 = ahrs.q3;
+
     // if (FSM_state > FSMState::STATE_IDLE)
     // {
     //     current_vel += (s_dt)*y_k(1, 0);
@@ -249,7 +261,7 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
  * @param &orientation Current orientation
  * @param current_state Current FSM_state
  */
-void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState FSM_state, GPS &gps)
+void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, Magnetometer magnetometer, FSMState FSM_state, GPS &gps)
 {
 
     if (FSM_state >= FSMState::STATE_IDLE) //
@@ -263,7 +275,7 @@ void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration accelerati
         // setF(dt, orientation.roll, orientation.pitch, orientation.yaw);
         setQ(dt, sd);
         priori(dt, orientation, FSM_state);
-        update(barometer, acceleration, orientation, FSM_state, gps);
+        update(barometer, acceleration, orientation, magnetometer, FSM_state, gps);
         compute_gps_inputs(gps, FSM_state); // testing GPS inputs
     }
 }
@@ -275,6 +287,7 @@ void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration accelerati
  */
 KalmanData EKF::getState()
 {
+
     return state;
 }
 

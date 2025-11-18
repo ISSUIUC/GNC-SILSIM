@@ -78,6 +78,7 @@ struct KalmanData
     Velocity velocity;
     Acceleration acceleration;
     float altitude;
+    float q0, q1, q2, q3;
 };
 
 enum class FSMState

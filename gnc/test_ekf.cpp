@@ -355,10 +355,11 @@ public:
             Barometer current_barom = data.barometer;
             Acceleration current_accel = {data.highg.ax, data.highg.ay, data.highg.az};
             Orientation current_orientation = data.orientation;
+            Magnetometer current_mag = data.magnetometer;
             FSMState current_fsm = data.fsm;
             GPS current_gps = data.gps;
 
-            ekf.tick(dt, 13.0f, current_barom, current_accel, current_orientation, current_fsm, current_gps);
+            ekf.tick(dt, 13.0f, current_barom, current_accel, current_orientation, current_mag, current_fsm, current_gps);
 
             KalmanData current_state = ekf.getState();
             results.push_back(current_state);
@@ -392,7 +393,7 @@ public:
             return;
         }
 
-        file << "timestamp,pos_x,pos_y,pos_z,vel_x,vel_y,vel_z,acc_x,acc_y,acc_z,altitude,fsm,raw_gps_latitude,raw_gps_longitude,raw_gps_altitude,raw_baro_alt,raw_highg_ax,raw_highg_ay,raw_highg_az" << std::endl;
+        file << "timestamp,pos_x,pos_y,pos_z,vel_x,vel_y,vel_z,acc_x,acc_y,acc_z,altitude,fsm,raw_gps_latitude,raw_gps_longitude,raw_gps_altitude,raw_baro_alt,raw_highg_ax,raw_highg_ay,raw_highg_az,q0,q1,q2,q3" << std::endl;
 
         for (size_t i = 0; i < results.size() && i < flight_data.size(); i++)
         {
@@ -418,7 +419,11 @@ public:
                  << data.barometer_altitude << ","
                  << data.highg_ax << ","
                  << data.highg_ay << ","
-                 << data.highg_az << std::endl;
+                 << data.highg_az << ","
+                 << result.q0 << ","
+                 << result.q1 << ","
+                 << result.q2 << ","
+                 << result.q3 << std::endl;
         }
 
         file.close();
