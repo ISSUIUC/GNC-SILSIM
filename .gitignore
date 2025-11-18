@@ -8,6 +8,7 @@ test_ekf
 *.o
 *.so
 *.a
+*.exe
 
 # IDE and editor files
 .vscode/

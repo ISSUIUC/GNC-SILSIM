@@ -2,37 +2,53 @@
 
 #include <string>
 
-struct Barometer {
+struct Barometer
+{
     float temperature;
     float pressure;
     float altitude;
 };
 
-struct Acceleration {
+struct Acceleration
+{
     float ax;
     float ay;
     float az;
 };
 
-struct Position {
+struct Position
+{
     float px;
     float py;
     float pz;
 };
 
-struct Velocity {
+struct Velocity
+{
     float vx;
     float vy;
     float vz;
 };
 
-struct euler_t {
+struct euler_t
+{
     float roll;
     float pitch;
     float yaw;
 };
 
-struct Orientation {
+struct Quaternion
+{
+    float w, x, y, z;
+
+    static float dot(const Quaternion &q1, const Quaternion &q2)
+    {
+        return q1.w * q2.w + q1.x * q2.x + q1.y * q2.y + q1.z * q2.z;
+    }
+};
+
+struct Orientation
+{
     bool has_data;
     std::string reading_type;
     float yaw;
@@ -42,33 +58,40 @@ struct Orientation {
     Velocity angular_velocity;
     Acceleration orientation_acceleration;
     Acceleration linear_acceleration;
+    Quaternion quaternion;
+
     float gx, gy, gz;
     float mx, my, mz;
     float temperature;
     float pressure;
     float tilt;
-    
-    euler_t getEuler() const {
+
+    euler_t getEuler() const
+    {
         return {roll, pitch, yaw};
     }
-    
-    Velocity getVelocity() const {
+
+    Velocity getVelocity() const
+    {
         return orientation_velocity;
     }
 
-    Velocity getAngularVelocity() const {
+    Velocity getAngularVelocity() const
+    {
         return angular_velocity;
     }
 };
 
-struct KalmanData {
+struct KalmanData
+{
     Position position;
     Velocity velocity;
     Acceleration acceleration;
     float altitude;
 };
 
-enum class FSMState {
+enum class FSMState
+{
     STATE_SAFE = 0,
     STATE_PYRO_TEST = 1,
     STATE_IDLE = 2,
@@ -103,24 +126,29 @@ const FSMState STATE_SUSTAINER_IGNITION = FSMState::STATE_SUSTAINER_IGNITION;
 const FSMState STATE_SECOND_BOOST = FSMState::STATE_SECOND_BOOST;
 const FSMState STATE_FIRST_SEPARATION = FSMState::STATE_FIRST_SEPARATION;
 
-struct LowGData {
+struct LowGData
+{
     float ax, ay, az;
 };
 
-struct HighGData {
+struct HighGData
+{
     float ax, ay, az;
 };
 
-struct LowGLSMData {
+struct LowGLSMData
+{
     float gx, gy, gz;
     float ax, ay, az;
 };
 
-struct Magnetometer {
+struct Magnetometer
+{
     float mx, my, mz;
 };
 
-struct GPS {
+struct GPS
+{
     float latitude;
     float longitude;
     float altitude;
@@ -129,16 +157,19 @@ struct GPS {
     float time;
 };
 
-struct Voltage {
+struct Voltage
+{
     float voltage;
     float current;
 };
 
-struct Continuity {
+struct Continuity
+{
     bool pins[4];
 };
 
-struct Pyro {
+struct Pyro
+{
     bool is_global_armed;
     bool channel_firing[4];
 };
