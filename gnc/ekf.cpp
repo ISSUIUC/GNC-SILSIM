@@ -6,7 +6,8 @@
  * The following program is the University of Illinois' Extended Kalman Filter, utilized for state estimation of
  * our single and multistage rockets. The program was developed since 2023 and had its first successful run (Booster) on LUNA, October 2025.
  *
- * 2025-2026 GNC EKF Team: Divij Garg (Senior), Shishir Bhatta (Senior), Keshav Balaji (Senior), 
+ * 2025-2026 GNC EKF Team: Divij Garg (Senior), Shishir Bhatta (Senior), Keshav Balaji (Senior), Tanish Mittal (Freshman), Amir Noormohammad (Aero MS), Ahmed Khan (Sophmore)
+ * Maximilian Kulasik (Sophomore), Kailen Patel (Sophomore)
  */
 extern const std::map<float, float> O5500X_data;
 extern const std::map<float, float> M685W_data;

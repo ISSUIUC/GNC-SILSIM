@@ -281,28 +281,28 @@ def plot_ekf_results(csv_file="output/results.csv"):
         axes2[1, 1].set_title('KF Acceleration X vs Raw HighG Z')
     
 
-    if fsm_changes:
-        for t, label in fsm_changes:
-            for ax in axes1.flat:
-                ax.axvline(x=t, color='k', linestyle='--', alpha=0.25)
-            for ax in axes2.flat:
-                ax.axvline(x=t, color='k', linestyle='--', alpha=0.25)
+    # if fsm_changes:
+    #     for t, label in fsm_changes:
+    #         for ax in axes1.flat:
+    #             ax.axvline(x=t, color='k', linestyle='--', alpha=0.25)
+    #         for ax in axes2.flat:
+    #             ax.axvline(x=t, color='k', linestyle='--', alpha=0.25)
 
-        annotated = set()
-        ylim_top1 = axes1[0, 0].get_ylim()[1]
-        ylim_top2 = axes2[0, 0].get_ylim()[1]
-        for t, label in fsm_changes:
-            if label not in annotated:
-                axes1[0, 0].text(t, ylim_top1, label, rotation=90,
-                                verticalalignment='bottom', fontsize=8, color='k')
-                axes2[0, 0].text(t, ylim_top2, label, rotation=90,
-                                verticalalignment='bottom', fontsize=8, color='k')
-                annotated.add(label)
+    #     annotated = set()
+    #     ylim_top1 = axes1[0, 0].get_ylim()[1]
+    #     ylim_top2 = axes2[0, 0].get_ylim()[1]
+    #     for t, label in fsm_changes:
+    #         if label not in annotated:
+    #             axes1[0, 0].text(t, ylim_top1, label, rotation=90,
+    #                             verticalalignment='bottom', fontsize=8, color='k')
+    #             axes2[0, 0].text(t, ylim_top2, label, rotation=90,
+    #                             verticalalignment='bottom', fontsize=8, color='k')
+    #             annotated.add(label)
 
-        if used_states_order:
-            legend_text = 'FSM states used: ' + ', '.join(used_states_order)
-            fig1.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=9)
-            fig2.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=9)
+    #     if used_states_order:
+    #         legend_text = 'FSM states used: ' + ', '.join(used_states_order)
+    #         fig1.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=9)
+    #         fig2.text(0.5, 0.98, legend_text, ha='center', va='top', fontsize=9)
     
     fig1.tight_layout()
     fig1.show()
