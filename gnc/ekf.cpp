@@ -6,7 +6,7 @@
  * The following program is the University of Illinois' Extended Kalman Filter, utilized for state estimation of
  * our single and multistage rockets. The program was developed since 2023 and had its first successful run (Booster) on LUNA, October 2025.
  *
- * 2025-2026 GNC EKF Team: Divij Garg (Senior), Shishir Bhatta (Senior), Keshav Balaji (Senior), 
+ * 2025-2026 GNC EKF Team: Divij Garg (Senior), Shishir Bhatta (Senior), Keshav Balaji (Senior),
  */
 extern const std::map<float, float> O5500X_data;
 extern const std::map<float, float> M685W_data;
@@ -176,10 +176,11 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     (sensor_accel_global_g)(1, 0) = acceleration.ay - 0.065;
     (sensor_accel_global_g)(2, 0) = acceleration.az - 0.06;
 
-    euler_t angles_rad = orientation.getEuler();
-    // angles_rad.yaw = -angles_rad.yaw; // coordinate frame match
+    // euler_t angles_rad = orientation.getEuler();
+    //  angles_rad.yaw = -angles_rad.yaw; // coordinate frame match
+    Quaternion q = orientation.quaternion;
 
-    BodyToGlobal(angles_rad, sensor_accel_global_g);
+    BodyToGlobalQuat(q.w, q.x, q.y, q.z, sensor_accel_global_g);
 
     float g_ms2;
     if ((FSM_state > FSMState::STATE_IDLE))
@@ -247,7 +248,6 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
  */
 void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState FSM_state, GPS &gps)
 {
-   
 
     if (FSM_state >= FSMState::STATE_IDLE) //
     {
@@ -544,7 +544,9 @@ void EKF::compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen:
         ((Fay + Fty) / curr_mass_kg),
         ((Faz + Ftz) / curr_mass_kg);
 
-    BodyToGlobal(angles_rad, v_dot);
+    Quaternion q = orientation.quaternion;
+    BodyToGlobalQuat(q.w, q.x, q.y, q.z, v_dot);
+    // BodyToGlobal(angles_rad, v_dot);
 
     xdot << x_k(1, 0), v_dot(0, 0) + gx,
         0.0,
@@ -574,40 +576,40 @@ void EKF::compute_kalman_gain()
  */
 void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
 {
-  /**
-   * struct GPS {
-    float latitude;
-    float longitude;
-    float altitude;
-    float speed;
-    int fix_type;
-    float time;
-};
-   * 
+    /**
+     * struct GPS {
+      float latitude;
+      float longitude;
+      float altitude;
+      float speed;
+      int fix_type;
+      float time;
+  };
+     *
 
 
-   lat, long, alt = GPS
-    lat = np.radians(lat)
-    long = np.radians(long)
+     lat, long, alt = GPS
+      lat = np.radians(lat)
+      long = np.radians(long)
 
-    e2 = (a**2 - b**2) / a**2                   # Eccentricity squared
-    N = a / np.sqrt(1 - e2 * np.sin(lat)**2)    # Prime vertical radius of curvature
+      e2 = (a**2 - b**2) / a**2                   # Eccentricity squared
+      N = a / np.sqrt(1 - e2 * np.sin(lat)**2)    # Prime vertical radius of curvature
 
-    x = (N + alt) * np.cos(lat) * np.cos(long)
-    y = (N + alt) * np.cos(lat) * np.sin(long)
-    z = ((1 - e2) * N + alt) * np.sin(lat)
+      x = (N + alt) * np.cos(lat) * np.cos(long)
+      y = (N + alt) * np.cos(lat) * np.sin(long)
+      z = ((1 - e2) * N + alt) * np.sin(lat)
 
-    return np.array([x, y, z])
-   *  */  
-    reference_GPS(gps, fsm); 
+      return np.array([x, y, z])
+     *  */
+    reference_GPS(gps, fsm);
 
-    float lat = gps.latitude/1e7; // deviding by 1e7 to convert from int to float
-    float lon = gps.longitude/1e7;
+    float lat = gps.latitude / 1e7; // deviding by 1e7 to convert from int to float
+    float lon = gps.longitude / 1e7;
     float alt = gps.altitude;
-    if(lat == gps_latitude_last && lon == gps_longitude_last){
+    if (lat == gps_latitude_last && lon == gps_longitude_last)
+    {
         return;
     }
-
 
     // Convert GPS to ECEF
 
@@ -618,28 +620,15 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     double dy = rocket_cords[1] - reference_cord[1];
     double dz = rocket_cords[2] - reference_cord[2];
 
-    
-    
-    float east  = -std::sin(gps_longitude_original) * dx + std::cos(gps_longitude_original) * dy;
-    float north = -std::sin(gps_latitude_original) * std::cos(gps_longitude_original) * dx
-            - std::sin(gps_latitude_original) * std::sin(gps_longitude_original) * dy
-            + std::cos(gps_latitude_original) * dz;
-    float up    = std::cos(gps_latitude_original) * std::cos(gps_longitude_original) * dx
-            + std::cos(gps_latitude_original) * std::sin(gps_longitude_original) * dy
-            + std::sin(gps_latitude_original) * dz;
-    
-
+    float east = -std::sin(gps_longitude_original) * dx + std::cos(gps_longitude_original) * dy;
+    float north = -std::sin(gps_latitude_original) * std::cos(gps_longitude_original) * dx - std::sin(gps_latitude_original) * std::sin(gps_longitude_original) * dy + std::cos(gps_latitude_original) * dz;
+    float up = std::cos(gps_latitude_original) * std::cos(gps_longitude_original) * dx + std::cos(gps_latitude_original) * std::sin(gps_longitude_original) * dy + std::sin(gps_latitude_original) * dz;
 
     // Update Kalman filter state CHECK THIS ORIENTATION ... NOT SURE IF THIS IS RIGHT
     x_k(3, 0) = east;
-    //x_k(3, 0) = north;
+    // x_k(3, 0) = north;
     x_k(6, 0) = up;
-    
-
 }
-
-
-
 
 void EKF::reference_GPS(GPS &gps, FSMState fsm)
 {
@@ -650,13 +639,11 @@ void EKF::reference_GPS(GPS &gps, FSMState fsm)
 
     if (fsm == FSMState::STATE_IDLE)
     {
-        gps_latitude_original = gps.latitude/1e7;
-        gps_longitude_original = gps.longitude/1e7;
+        gps_latitude_original = gps.latitude / 1e7;
+        gps_longitude_original = gps.longitude / 1e7;
         gps_latitude_last = gps_latitude_original;
         gps_longitude_last = gps_longitude_original;
     }
-    
-    
 }
 
 EKF ekf;
