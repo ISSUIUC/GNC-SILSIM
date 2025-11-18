@@ -128,7 +128,9 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
 
     Eigen::Matrix<float, 3, 1> velocities_body;
     velocities_body << x_k(1, 0), x_k(4, 0), x_k(7, 0);
-    GlobalToBody(angles_rad, velocities_body);
+
+    Quaternion q = orientation.quaternion.normalized();
+    GlobalToBodyQuat(q.w, q.x, q.y, q.z, velocities_body);
     float vx_body = velocities_body(0, 0);
     float vy_body = velocities_body(1, 0);
     float vz_body = velocities_body(2, 0);
@@ -178,7 +180,7 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
 
     // euler_t angles_rad = orientation.getEuler();
     //  angles_rad.yaw = -angles_rad.yaw; // coordinate frame match
-    Quaternion q = orientation.quaternion;
+    Quaternion q = orientation.quaternion.normalized();
 
     BodyToGlobalQuat(q.w, q.x, q.y, q.z, sensor_accel_global_g);
 
@@ -544,7 +546,7 @@ void EKF::compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen:
         ((Fay + Fty) / curr_mass_kg),
         ((Faz + Ftz) / curr_mass_kg);
 
-    Quaternion q = orientation.quaternion;
+    Quaternion q = orientation.quaternion.normalized();
     BodyToGlobalQuat(q.w, q.x, q.y, q.z, v_dot);
     // BodyToGlobal(angles_rad, v_dot);
 
