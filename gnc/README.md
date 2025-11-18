@@ -1,6 +1,6 @@
 In the gnc folder, run 
 
-g++ -I. -o main test_ekf.cpp ekf.cpp
+g++ -I. -o main test_ekf.cpp ekf.cpp Madgwick/Madgwick.cpp
 
 Then, in the root, run
 

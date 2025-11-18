@@ -8,7 +8,7 @@
 #include "constants.h"
 #include "aero_coeff.h"
 #include "rotation.h"
-#include "Madgwick.h"
+#include <Madgwick/Madgwick.h>
 
 #define NUM_STATES 9
 #define NUM_SENSOR_INPUTS 4

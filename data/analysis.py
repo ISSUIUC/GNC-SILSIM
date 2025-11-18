@@ -8,6 +8,7 @@ from matplotlib.animation import FuncAnimation
 # AL0 = sustainer
 # AL2 = booster
 data = pd.read_csv("MIDAS Trimmed (AL0, CSV).csv")
+sim_data = pd.read_csv("../output/results.csv")
 
 # Filter for rows where sensor == "orientation"
 # data = data[data["sensor"] == "orientation"]
@@ -25,12 +26,16 @@ cols = [
     "fsm",
 ]
 
-for c in cols:
-    if c not in data.columns:
-        raise RuntimeError(f"Expected column '{c}' not found in CSV")
+sim_cols = ["q0", "q1", "q2", "q3"]
 
 qdf = data[cols].copy()
-qdf.to_csv("orientation_quaternions.csv", index=False)
+qdf.to_csv("quat_data.csv", index=False)
+
+qdf_sim = sim_data[sim_cols].copy()
+qdf_sim.to_csv("quat_sim.csv", index=False)
+
+assert len(qdf) == len(qdf_sim), "qdf and qdf_sim must be same length"
+
 
 # other_cols = ["orientation.gx", "orientation.gy", "orientation.gz"]
 # other = data[other_cols].copy()
@@ -73,6 +78,12 @@ qx = qdf["orientation.orientation_quaternion.x"].to_numpy(dtype=float)
 qy = qdf["orientation.orientation_quaternion.y"].to_numpy(dtype=float)
 qz = qdf["orientation.orientation_quaternion.z"].to_numpy(dtype=float)
 fsm = qdf["fsm"]
+
+qw_sim = qdf_sim["q0"].to_numpy(dtype=float)
+qx_sim = qdf_sim["q1"].to_numpy(dtype=float)
+qy_sim = qdf_sim["q2"].to_numpy(dtype=float)
+qz_sim = qdf_sim["q3"].to_numpy(dtype=float)
+
 
 delta_t_values = qdf["timestamp"].diff().dropna()
 # print(delta_t_values)
@@ -197,9 +208,12 @@ edges = [
 axes = np.eye(3) * (cube_size * 1.2)
 
 
-fig = plt.figure(figsize=(7, 7))
-ax = fig.add_subplot(111, projection="3d")
+fig = plt.figure(figsize=(14, 7))  # doubled width for side-by-side
+ax = fig.add_subplot(121, projection="3d")  # LEFT: original animation
+ax_sim = fig.add_subplot(122, projection="3d")  # RIGHT: sim animation
+
 ax.set_box_aspect((1, 1, 1))
+ax_sim.set_box_aspect((1, 1, 1))
 
 # Set axis limits
 lim = cube_size * 2.0
@@ -209,13 +223,30 @@ ax.set_zlim(-lim, lim)
 ax.set_xlabel("X")
 ax.set_ylabel("Y")
 ax.set_zlabel("Z")
-ax.set_title("Orientation Visualizer (Quaternion -> 3D)")
+ax.set_title("Orientation Visualizer - Flight Data")
+
+
+ax_sim.set_title("Orientation Visualizer - Simulation")
+ax_sim.set_xlim(-lim, lim)
+ax_sim.set_ylim(-lim, lim)
+ax_sim.set_zlim(-lim, lim)
+ax_sim.set_xlabel("X")
+ax_sim.set_ylabel("Y")
+ax_sim.set_zlabel("Z")
+
 
 # Lines for cube edges and axis arrows
 edge_lines = [ax.plot([], [], [], color="black", linewidth=2)[0] for _ in edges]
 axis_lines = [ax.plot([], [], [], color=c, linewidth=3)[0] for c in ("r", "g", "b")]
 time_text = ax.text2D(0.02, 0.95, "", transform=ax.transAxes)
 fsm_text = ax.text2D(0.02, 0.90, "", transform=ax.transAxes)
+
+# SIM plot objects (right side)
+edge_lines_sim = [ax_sim.plot([], [], [], color="black", linewidth=2)[0] for _ in edges]
+axis_lines_sim = [
+    ax_sim.plot([], [], [], color=c, linewidth=3)[0] for c in ("r", "g", "b")
+]
+time_text_sim = ax_sim.text2D(0.02, 0.95, "", transform=ax_sim.transAxes)
 
 
 def init_anim():
@@ -276,8 +307,35 @@ def update_anim(frame):
     return edge_lines + axis_lines + [time_text]
 
 
+def update_anim_sim(frame):
+    i = frame
+    w, x, y, z = qw_sim[i], qx_sim[i], qy_sim[i], qz_sim[i]
+    R = quat_to_rot_matrix(w, x, y, z)
+
+    # rotate vertices
+    verts_rot = (R @ cube_vertices.T).T
+
+    # edges
+    for e_idx, (a, b) in enumerate(edges):
+        p0 = verts_rot[a]
+        p1 = verts_rot[b]
+        edge_lines_sim[e_idx].set_data([p0[0], p1[0]], [p0[1], p1[1]])
+        edge_lines_sim[e_idx].set_3d_properties([p0[2], p1[2]])
+
+    # axes
+    axes_rot = (R @ axes.T).T
+    for k in range(3):
+        p = axes_rot[k]
+        axis_lines_sim[k].set_data([0, p[0]], [0, p[1]])
+        axis_lines_sim[k].set_3d_properties([0, p[2]])
+
+    time_text_sim.set_text(f"index={i}  sim_q=({w:.3f},{x:.3f},{y:.3f},{z:.3f})")
+
+    return edge_lines_sim + axis_lines_sim + [time_text_sim]
+
+
 # Choose frame indices: use all samples or subsample if too many
-max_frames = 8000
+max_frames = 80000
 N = len(ts)
 if N == 0:
     raise RuntimeError("No quaternion samples found")
@@ -291,15 +349,22 @@ print(f"Subsampling: every {step}th sample")
 print(f"Close the animation window to complete.\n")
 
 
+def update_both(frame):
+    artists1 = update_anim(frame)
+    artists2 = update_anim_sim(frame)
+    return artists1 + artists2
+
+
 ani = FuncAnimation(
     fig,
-    update_anim,
+    update_both,
     frames=frame_indices,
     init_func=init_anim,
     interval=interval_ms,
     blit=False,
     repeat=True,
 )
+
 
 print(f"Animation ready. Displaying...")
 plt.show()

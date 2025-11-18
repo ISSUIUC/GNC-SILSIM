@@ -2,7 +2,7 @@
 #include "fsm_states.h" // for sim
 #include <iostream>
 #include <cmath>
-#include <Madgwick.h>
+#include <Madgwick/Madgwick.h>
 
 /**
  * The following program is the University of Illinois' Extended Kalman Filter, utilized for state estimation of
