@@ -185,6 +185,14 @@ public:
                 row.orientation.angular_velocity.vy = toFloatOr(getValue(values, "orientation.angular_velocity.vy"), row.orientation.angular_velocity.vy);
                 row.orientation.angular_velocity.vz = toFloatOr(getValue(values, "orientation.angular_velocity.vz"), row.orientation.angular_velocity.vz);
 
+                row.orientation.orientation_acceleration.ax = toFloatOr(getValue(values, "orientation.orientation_acceleration.ax"), row.orientation.orientation_acceleration.ax);
+                row.orientation.orientation_acceleration.ay = toFloatOr(getValue(values, "orientation.orientation_acceleration.ay"), row.orientation.orientation_acceleration.ay);
+                row.orientation.orientation_acceleration.az = toFloatOr(getValue(values, "orientation.orientation_acceleration.az"), row.orientation.orientation_acceleration.az);
+
+                row.orientation.mx = toFloatOr(getValue(values, "orientation.magnetometer.mx"), row.orientation.mx);
+                row.orientation.my = toFloatOr(getValue(values, "orientation.magnetometer.my"), row.orientation.my);
+                row.orientation.mz = toFloatOr(getValue(values, "orientation.magnetometer.mz"), row.orientation.mz);
+
                 row.magnetometer.mx = toFloatOr(getValue(values, "magnetometer.mx"), row.magnetometer.mx);
                 row.magnetometer.my = toFloatOr(getValue(values, "magnetometer.my"), row.magnetometer.my);
                 row.magnetometer.mz = toFloatOr(getValue(values, "magnetometer.mz"), row.magnetometer.mz);

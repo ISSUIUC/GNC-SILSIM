@@ -173,8 +173,8 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     compute_kalman_gain();
 
     // ahrs update
-    ahrs.AHRSupdate(orientation.gx, orientation.gy, orientation.gz,
-                    acceleration.ax, acceleration.ay, acceleration.az,
+    ahrs.AHRSupdate(orientation.angular_velocity.vx, orientation.angular_velocity.vy, orientation.angular_velocity.vz,
+                    -1 * orientation.orientation_acceleration.az, orientation.orientation_acceleration.ay, orientation.orientation_acceleration.ax,
                     magnetometer.mx, magnetometer.my, magnetometer.mz,
                     dt);
 
