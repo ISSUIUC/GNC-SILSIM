@@ -177,9 +177,13 @@ public:
                 row.orientation.orientation_velocity.vy = toFloatOr(getValue(values, "orientation.orientation_velocity.vy"), row.orientation.orientation_velocity.vy);
                 row.orientation.orientation_velocity.vz = toFloatOr(getValue(values, "orientation.orientation_velocity.vz"), row.orientation.orientation_velocity.vz);
 
-                row.orientation.gx = toFloatOr(getValue(values, "orientation.gx"), row.orientation.gx);
-                row.orientation.gy = toFloatOr(getValue(values, "orientation.gy"), row.orientation.gy);
-                row.orientation.gz = toFloatOr(getValue(values, "orientation.gz"), row.orientation.gz);
+                // row.orientation.gx = toFloatOr(getValue(values, "orientation.gx"), row.orientation.gx);
+                // row.orientation.gy = toFloatOr(getValue(values, "orientation.gy"), row.orientation.gy);
+                // row.orientation.gz = toFloatOr(getValue(values, "orientation.gz"), row.orientation.gz);
+
+                row.orientation.gx = toFloatOr(getValue(values, "lowglsm.gx"), row.orientation.gx);
+                row.orientation.gy = toFloatOr(getValue(values, "lowglsm.gy"), row.orientation.gy);
+                row.orientation.gz = toFloatOr(getValue(values, "lowglsm.gz"), row.orientation.gz);
 
                 row.orientation.angular_velocity.vx = toFloatOr(getValue(values, "orientation.angular_velocity.vx"), row.orientation.angular_velocity.vx);
                 row.orientation.angular_velocity.vy = toFloatOr(getValue(values, "orientation.angular_velocity.vy"), row.orientation.angular_velocity.vy);
@@ -197,10 +201,10 @@ public:
                 row.magnetometer.my = toFloatOr(getValue(values, "magnetometer.my"), row.magnetometer.my);
                 row.magnetometer.mz = toFloatOr(getValue(values, "magnetometer.mz"), row.magnetometer.mz);
 
-                // row.orientation.quaternion.w = toFloatOr(getValue(values, "orientation.orientation_quaternion.w"), row.orientation.quaternion.w);
-                // row.orientation.quaternion.x = toFloatOr(getValue(values, "orientation.orientation_quaternion.x"), row.orientation.quaternion.x);
-                // row.orientation.quaternion.y = toFloatOr(getValue(values, "orientation.orientation_quaternion.y"), row.orientation.quaternion.y);
-                // row.orientation.quaternion.z = toFloatOr(getValue(values, "orientation.orientation_quaternion.z"), row.orientation.quaternion.z);
+                row.orientation.q0 = toFloatOr(getValue(values, "orientation.orientation_quaternion.w"), row.orientation.q0);
+                row.orientation.q1 = toFloatOr(getValue(values, "orientation.orientation_quaternion.x"), row.orientation.q1);
+                row.orientation.q2 = toFloatOr(getValue(values, "orientation.orientation_quaternion.y"), row.orientation.q2);
+                row.orientation.q3 = toFloatOr(getValue(values, "orientation.orientation_quaternion.z"), row.orientation.q3);
 
                 {
                     std::string fsm_str = getValue(values, "fsm");

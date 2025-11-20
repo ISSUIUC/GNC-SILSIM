@@ -48,6 +48,7 @@ struct Orientation
     Acceleration orientation_acceleration;
     Acceleration linear_acceleration;
 
+    float q0, q1, q2, q3;
     float yaw, pitch, roll;
     float gx, gy, gz;
     float mx, my, mz;
