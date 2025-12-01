@@ -132,8 +132,8 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
     velocities_body << x_k(1, 0), x_k(4, 0), x_k(7, 0);
 
     // GlobalToBodyQuat(ahrs.q0, ahrs.q1, ahrs.q2, ahrs.q3, velocities_body);
-    GlobalToBodyQuat(orientation.q0, orientation.q1, orientation.q2, orientation.q3, velocities_body);
-    //  GlobalToBody(angles_rad, velocities_body);
+    // GlobalToBodyQuat(orientation.q0, orientation.q1, orientation.q2, orientation.q3, velocities_body);
+    GlobalToBody(angles_rad, velocities_body);
     float vx_body = velocities_body(0, 0);
     float vy_body = velocities_body(1, 0);
     float vz_body = velocities_body(2, 0);
@@ -190,10 +190,10 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     euler_t angles_rad = orientation.getEuler();
     //  angles_rad.yaw = -angles_rad.yaw; // coordinate frame match
 
-    BodyToGlobalQuat(orientation.q0, orientation.q1, orientation.q2, orientation.q3, sensor_accel_global_g);
+    // BodyToGlobalQuat(orientation.q0, orientation.q1, orientation.q2, orientation.q3, sensor_accel_global_g);
     // BodyToGlobalQuat(ahrs.q0, ahrs.q1, ahrs.q2, ahrs.q3, sensor_accel_global_g);
 
-    // BodyToGlobal(angles_rad, sensor_accel_global_g);
+    BodyToGlobal(angles_rad, sensor_accel_global_g);
 
     float g_ms2;
     if ((FSM_state > FSMState::STATE_IDLE))
@@ -563,10 +563,10 @@ void EKF::compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen:
         ((Fay + Fty) / curr_mass_kg),
         ((Faz + Ftz) / curr_mass_kg);
 
-    BodyToGlobalQuat(orientation.q0, orientation.q1, orientation.q2, orientation.q3, v_dot);
-    // BodyToGlobalQuat(ahrs.q0, ahrs.q1, ahrs.q2, ahrs.q3, v_dot);
+    // BodyToGlobalQuat(orientation.q0, orientation.q1, orientation.q2, orientation.q3, v_dot);
+    //  BodyToGlobalQuat(ahrs.q0, ahrs.q1, ahrs.q2, ahrs.q3, v_dot);
 
-    // BodyToGlobal(angles_rad, v_dot);
+    BodyToGlobal(angles_rad, v_dot);
 
     xdot << x_k(1, 0), v_dot(0, 0) + gx,
         0.0,
