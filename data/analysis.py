@@ -7,8 +7,8 @@ from matplotlib.animation import FuncAnimation
 # Load CSV (adjust filename if needed)
 # AL0 = sustainer
 # AL2 = booster
-data = pd.read_csv("MIDAS Trimmed (AL0, CSV).csv")
-sim_data = pd.read_csv("../output/results.csv")
+data = pd.read_csv("data/MIDAS Trimmed (AL0, CSV).csv")
+sim_data = pd.read_csv("output/results.csv")
 
 # Filter for rows where sensor == "orientation"
 # data = data[data["sensor"] == "orientation"]
@@ -24,6 +24,7 @@ cols = [
     "orientation.has_data",
     "orientation.reading_type",
     "fsm",
+    "barometer.altitude",
 ]
 
 sim_cols = ["q0", "q1", "q2", "q3"]
@@ -78,6 +79,7 @@ qx = qdf["orientation.orientation_quaternion.x"].to_numpy(dtype=float)
 qy = qdf["orientation.orientation_quaternion.y"].to_numpy(dtype=float)
 qz = qdf["orientation.orientation_quaternion.z"].to_numpy(dtype=float)
 fsm = qdf["fsm"]
+alt = qdf["barometer.altitude"].to_numpy(dtype=float)
 
 qw_sim = qdf_sim["q0"].to_numpy(dtype=float)
 qx_sim = qdf_sim["q1"].to_numpy(dtype=float)
@@ -302,7 +304,7 @@ def update_anim(frame):
     fsm_text.set_text(f"FSM: {fsm[i]}")
 
     if i % 50 == 0:
-        print(f"  Frame {i}: q=({w:.3f},{x:.3f},{y:.3f},{z:.3f})")
+        print(f"  Frame {i}: q=({w:.3f},{x:.3f},{y:.3f},{z:.3f}) | Alt: {alt[i]}")
 
     return edge_lines + axis_lines + [time_text]
 
