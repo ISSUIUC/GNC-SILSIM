@@ -103,41 +103,8 @@ void EKF::initialize(RocketSystems *args)
 
 void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
 {
-    Eigen::Matrix<float, 9, 1> xdot = Eigen::Matrix<float, 9, 1>::Zero();
-
-    // angular states from sensors
-    Velocity omega_rps = orientation.getAngularVelocity(); // rads per sec
-
-    euler_t angles_rad = orientation.getEuler();
-
-    // mass and height init
-    float curr_height_m = height_sustainer;
-
-    if (fsm < FSMState::STATE_BURNOUT)
-    {
-        curr_height_m = height_full;
-    }
-    compute_mass(fsm);
-
-    // float vel_mag_squared_ms = ((x_k(1, 0) - 1.2 * Wind(0, 0)) * (x_k(1, 0) - 1.2 * Wind(0, 0))) + x_k(4, 0) * x_k(4, 0) + x_k(7, 0) * x_k(7, 0);
-    float vel_mag_squared_ms = ((x_k(1, 0)) * (x_k(1, 0))) + x_k(4, 0) * x_k(4, 0) + x_k(7, 0) * x_k(7, 0);
-
-    float vel_magnitude_ms = pow(vel_mag_squared_ms, 0.5);
-
-    // approximating C_a (aerodynamic coeff.)
-    compute_drag_coeffs(vel_magnitude_ms);
-
-    Eigen::Matrix<float, 3, 1> velocities_body;
-    velocities_body << x_k(1, 0), x_k(4, 0), x_k(7, 0);
-    GlobalToBody(angles_rad, velocities_body);
-    float vx_body = velocities_body(0, 0);
-    float vy_body = velocities_body(1, 0);
-    float vz_body = velocities_body(2, 0);
-
-    // priori step
-    compute_x_dot(dt, orientation, fsm, xdot);
-    x_priori = (xdot * dt) + x_k;
-    setF(dt, 0, 0, 0, fsm, vx_body, vy_body, vz_body);
+    x_priori = F_mat * x_k;
+    setF(dt, 0, 0, 0, fsm, 0,0,0);
     P_priori = (F_mat * P_k * F_mat.transpose()) + Q;
 }
 
@@ -248,7 +215,6 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
  */
 void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState FSM_state, GPS &gps)
 {
-   
 
     if (FSM_state >= FSMState::STATE_IDLE) //
     {
@@ -262,7 +228,13 @@ void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration accelerati
         setQ(dt, sd);
         priori(dt, orientation, FSM_state);
         update(barometer, acceleration, orientation, FSM_state, gps);
-        compute_gps_inputs(gps, FSM_state); // testing GPS inputs
+        // Eigen::Matrix<float,4,1> quat;
+        // eulerToQuaternion(orientation.roll,orientation.pitch,orientation.yaw,quat);
+
+        // std::cout << "Quaternion: w=" << quat(0,0)<< ", x=" << quat(1,0)
+        //           << ", y=" << quat(2,0)<< ", z=" <<quat(3,0)<< std::endl;
+       
+        // compute_gps_inputs(gps, FSM_state); // testing GPS inputs
     }
 }
 
@@ -350,108 +322,76 @@ void EKF::
 void EKF::setF(float dt, float w_x, float w_y, float w_z, FSMState fsm, float v_x, float v_y, float v_z)
 
 {
-    float coeff = 0;
-    if ((fsm > FSMState::STATE_IDLE))
-    {
-        coeff = -pi * Ca * (r * r) * rho / curr_mass_kg;
-    }
-
-    F_mat.setIdentity(); // start from identity
-
-    // For x
-    // F_mat(0, 1) = dt;
-    // F_mat(0, 2) = 0.5f * dt * dt;
-    // F_mat(1, 2) = dt;
-
-    // // For y
-    // F_mat(3, 4) = dt;
-    // F_mat(3, 5) = 0.5f * dt * dt;
-    // F_mat(4, 5) = dt;
-
-    // // For z
-    // F_mat(6, 7) = dt;
-    // F_mat(6, 8) = 0.5f * dt * dt;
-    // F_mat(7, 8) = dt;
-    F_mat.setZero();
-
-    F_mat(0, 1) = 1.0f;
-
-    F_mat(1, 1) = coeff * v_x;
-    F_mat(1, 2) = 0.5f;
-    F_mat(1, 4) = 0.5f * (coeff * v_y + w_z);
-    F_mat(1, 7) = 0.5f * (coeff * v_z - w_y);
-
-    F_mat(3, 4) = 1.0f;
-
-    F_mat(4, 1) = -0.5f * w_z;
-    F_mat(4, 5) = 0.5f;
-    F_mat(4, 7) = 0.5f * w_x;
-
-    F_mat(6, 7) = 1.0f;
-
-    F_mat(7, 1) = 0.5f * w_y;
-    F_mat(7, 4) = -0.5f * w_x;
-    F_mat(7, 8) = 0.5f;
+    F_mat.setIdentity(); 
+    F_mat(0, 1) = dt;        
+    F_mat(0, 2) = 0.5f * dt * dt; 
+    F_mat(1, 2) = dt;        
+    F_mat(3, 4) = dt;      
+    F_mat(3, 5) = 0.5f * dt * dt; 
+    F_mat(4, 5) = dt;     
+    F_mat(6, 7) = dt;       
+    F_mat(6, 8) = 0.5f * dt * dt;
+    F_mat(7, 8) = dt;        
 }
 
-/**
- * @brief Returns the approximate thrust force from the motor given the thurst curve
- *
- * @param timestamp Time since most recent ignition
- * @param angles Current orientation of the rocket
- * @param FSM_state Current FSM state
- *
- * @return Thrust force in the body frame
- *
- * The thrust force is calculated by interpolating the thrust curve data which is stored in an ordered map (see top of file).
- * The thrust curve data is different for the booster and sustainer stages, so the function checks the FSM state to determine
- * which thrust curve to use. The time since ignition is also important to consider so that is reset once we reach a new stage.
- * The thrust force is then rotated into the body frame using the BodyToGlobal function.
- */
-void EKF::getThrust(float timestamp, const euler_t &angles, FSMState FSM_state, Eigen::Vector3f &thrust_out)
-{
-    // Pick which motor thrust curve to use
-    const std::map<float, float> *thrust_curve = nullptr;
+// /**
+//  * @brief Returns the approximate thrust force from the motor given the thurst curve
+//  *
+//  * @param timestamp Time since most recent ignition
+//  * @param angles Current orientation of the rocket
+//  * @param FSM_state Current FSM state
+//  *
+//  * @return Thrust force in the body frame
+//  *
+//  * The thrust force is calculated by interpolating the thrust curve data which is stored in an ordered map (see top of file).
+//  * The thrust curve data is different for the booster and sustainer stages, so the function checks the FSM state to determine
+//  * which thrust curve to use. The time since ignition is also important to consider so that is reset once we reach a new stage.
+//  * The thrust force is then rotated into the body frame using the BodyToGlobal function.
+//  */
+// void EKF::getThrust(float timestamp, const euler_t &angles, FSMState FSM_state, Eigen::Vector3f &thrust_out)
+// {
+//     // Pick which motor thrust curve to use
+//     const std::map<float, float> *thrust_curve = nullptr;
 
-    if (FSM_state == STATE_FIRST_BOOST)
-    {
-        thrust_curve = &motor_data.at("Booster"); // Booster
-    }
-    else if (FSM_state == STATE_SECOND_BOOST)
-        thrust_curve = &motor_data.at("Sustainer"); // Sustainer
-    else
-    {
-        thrust_out.setZero();
-        return; // No thrust before ignition
-    }
+//     if (FSM_state == STATE_FIRST_BOOST)
+//     {
+//         thrust_curve = &motor_data.at("Booster"); // Booster
+//     }
+//     else if (FSM_state == STATE_SECOND_BOOST)
+//         thrust_curve = &motor_data.at("Sustainer"); // Sustainer
+//     else
+//     {
+//         thrust_out.setZero();
+//         return; // No thrust before ignition
+//     }
 
-    // Handle case where timestamp is before or after available data
-    if (timestamp <= thrust_curve->begin()->first)
-    {
-        thrust_out = Eigen::Vector3f(thrust_curve->begin()->second, 0.f, 0.f);
-    }
-    else if (timestamp >= thrust_curve->rbegin()->first)
-    {
-        thrust_out.setZero(); // assume motor burned out after curve ends
-    }
-    else
-    {
-        // Find interpolation interval
-        auto it_upper = thrust_curve->lower_bound(timestamp);
-        auto it_lower = std::prev(it_upper);
+//     // Handle case where timestamp is before or after available data
+//     if (timestamp <= thrust_curve->begin()->first)
+//     {
+//         thrust_out = Eigen::Vector3f(thrust_curve->begin()->second, 0.f, 0.f);
+//     }
+//     else if (timestamp >= thrust_curve->rbegin()->first)
+//     {
+//         thrust_out.setZero(); // assume motor burned out after curve ends
+//     }
+//     else
+//     {
+//         // Find interpolation interval
+//         auto it_upper = thrust_curve->lower_bound(timestamp);
+//         auto it_lower = std::prev(it_upper);
 
-        float x0 = it_lower->first;
-        float y0 = it_lower->second;
-        float x1 = it_upper->first;
-        float y1 = it_upper->second;
+//         float x0 = it_lower->first;
+//         float y0 = it_lower->second;
+//         float x1 = it_upper->first;
+//         float y1 = it_upper->second;
 
-        float interpolated_thrust = linearInterpolation(x0, y0, x1, y1, timestamp);
-        thrust_out = Eigen::Vector3f(interpolated_thrust, 0.f, 0.f);
-    }
+//         float interpolated_thrust = linearInterpolation(x0, y0, x1, y1, timestamp);
+//         thrust_out = Eigen::Vector3f(interpolated_thrust, 0.f, 0.f);
+//     }
 
-    // Rotate from body to global
-    // BodyToGlobal(angles, thrust_out);
-}
+//     // Rotate from body to global
+//     // BodyToGlobal(angles, thrust_out);
+// }
 
 /**
  * @brief Computes the rockets mass throughout the flight.
@@ -472,90 +412,90 @@ void EKF::compute_mass(FSMState fsm)
      */
 }
 
-/**
- * @brief Computes the rockets' drag coefficients.
- *
- * The following takes the velocity of the rocket and calculates the drag coefficients, storing them in a global variable.
+// /**
+//  * @brief Computes the rockets' drag coefficients.
+//  *
+//  * The following takes the velocity of the rocket and calculates the drag coefficients, storing them in a global variable.
 
- * @param vel_magnitude_ms: Current velocity magnitude of the rocket
- * @todo Include the calculations for the other drag coefficients
- */
-void EKF::compute_drag_coeffs(float vel_magnitude_ms)
-{
-    float mach = vel_magnitude_ms / a;
-    int index = std::round(mach / 0.04);
-    index = std::clamp(index, 0, (int)AERO_DATA_SIZE - 1);
-    Ca = aero_data[index].CA_power_on;
-}
+//  * @param vel_magnitude_ms: Current velocity magnitude of the rocket
+//  * @todo Include the calculations for the other drag coefficients
+//  */
+// void EKF::compute_drag_coeffs(float vel_magnitude_ms)
+// {
+//     float mach = vel_magnitude_ms / a;
+//     int index = std::round(mach / 0.04);
+//     index = std::clamp(index, 0, (int)AERO_DATA_SIZE - 1);
+//     Ca = aero_data[index].CA_power_on;
+// }
 
-/**
- * @brief Computes the rockets' change in velocity and acceleration based on its current iteration.
- *
- * The following takes the rocket's current orientation data and uses that to calculate its x_dot, which is change in velocity and acceleration.
- * Using thrust data, aerodynamic data, and gravity, the program calculates the changes and returns it in the global frame.
+// /**
+//  * @brief Computes the rockets' change in velocity and acceleration based on its current iteration.
+//  *
+//  * The following takes the rocket's current orientation data and uses that to calculate its x_dot, which is change in velocity and acceleration.
+//  * Using thrust data, aerodynamic data, and gravity, the program calculates the changes and returns it in the global frame.
 
- * @param dt: Current change in time
- * @param orientation, fsm: Current rocket data used.
- * @param xdot: Reference to the vector where the final xdot is stored,
- * @todo Fix reference frames, include better dynamics.
- */
-void EKF::compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot)
-{
-    euler_t angles_rad = orientation.getEuler();
-    Velocity omega_rps = orientation.getAngularVelocity(); // rads per sec
-    // ignore effects of gravity when on pad
-    Eigen::Matrix<float, 3, 1> g_global = Eigen::Matrix<float, 3, 1>::Zero();
-    if ((fsm > FSMState::STATE_IDLE))
-    {
-        g_global(0, 0) = -gravity_ms2;
-    }
-    else
-    {
-        g_global(0, 0) = 0;
-    }
-    float vel_mag_squared_ms = ((x_k(1, 0)) * (x_k(1, 0))) + x_k(4, 0) * x_k(4, 0) + x_k(7, 0) * x_k(7, 0);
-    float vel_magnitude_ms = pow(vel_mag_squared_ms, 0.5);
+//  * @param dt: Current change in time
+//  * @param orientation, fsm: Current rocket data used.
+//  * @param xdot: Reference to the vector where the final xdot is stored,
+//  * @todo Fix reference frames, include better dynamics.
+//  */
+// void EKF::compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot)
+// {
+//     euler_t angles_rad = orientation.getEuler();
+//     Velocity omega_rps = orientation.getAngularVelocity(); // rads per sec
+//     // ignore effects of gravity when on pad
+//     Eigen::Matrix<float, 3, 1> g_global = Eigen::Matrix<float, 3, 1>::Zero();
+//     if ((fsm > FSMState::STATE_IDLE))
+//     {
+//         g_global(0, 0) = -gravity_ms2;
+//     }
+//     else
+//     {
+//         g_global(0, 0) = 0;
+//     }
+//     float vel_mag_squared_ms = ((x_k(1, 0)) * (x_k(1, 0))) + x_k(4, 0) * x_k(4, 0) + x_k(7, 0) * x_k(7, 0);
+//     float vel_magnitude_ms = pow(vel_mag_squared_ms, 0.5);
 
-    // aerodynamic force
-    // Body frame
-    float Fax = 0; // instead of mag square --> mag * vel_x
-    if ((fsm > FSMState::STATE_IDLE))
-    {
-        Fax = -0.5 * rho * (vel_magnitude_ms) * float(Ca) * (pi * r * r) * x_k(1, 0);
-    }
-    float Fay = 0; // assuming no aerodynamic effects
-    float Faz = 0; // assuming no aerodynamic effects
+//     // aerodynamic force
+//     // Body frame
+//     float Fax = 0; // instead of mag square --> mag * vel_x
+//     if ((fsm > FSMState::STATE_IDLE))
+//     {
+//         Fax = -0.5 * rho * (vel_magnitude_ms) * float(Ca) * (pi * r * r) * x_k(1, 0);
+//     }
+//     float Fay = 0; // assuming no aerodynamic effects
+//     float Faz = 0; // assuming no aerodynamic effects
 
-    // acceleration due to gravity
-    float gx = g_global(0, 0);
-    float gy = g_global(1, 0);
-    float gz = g_global(2, 0);
+//     // acceleration due to gravity
+//     float gx = g_global(0, 0);
+//     float gy = g_global(1, 0);
+//     float gz = g_global(2, 0);
 
-    // thurst force, body frame
-    Eigen::Matrix<float, 3, 1> Ft_body;
-    EKF::getThrust(stage_timestamp, angles_rad, fsm, Ft_body);
+//     // thurst force, body frame
+//     Eigen::Matrix<float, 3, 1> Ft_body;
+//     EKF::getThrust(stage_timestamp, angles_rad, fsm, Ft_body);
 
-    // body frame
-    float Ftx = Ft_body(0, 0);
-    float Fty = Ft_body(1, 0);
-    float Ftz = Ft_body(2, 0);
+//     // body frame
+//     float Ftx = Ft_body(0, 0);
+//     float Fty = Ft_body(1, 0);
+//     float Ftz = Ft_body(2, 0);
 
-    Eigen::Matrix<float, 3, 1> v_dot; // we compute everything in the body frame for accelerations, and then convert those accelerations to global frame
-    v_dot << ((Fax + Ftx) / curr_mass_kg),
-        ((Fay + Fty) / curr_mass_kg),
-        ((Faz + Ftz) / curr_mass_kg);
+//     Eigen::Matrix<float, 3, 1> v_dot; // we compute everything in the body frame for accelerations, and then convert those accelerations to global frame
+//     v_dot << ((Fax + Ftx) / curr_mass_kg),
+//         ((Fay + Fty) / curr_mass_kg),
+//         ((Faz + Ftz) / curr_mass_kg);
 
-    BodyToGlobal(angles_rad, v_dot);
+//     BodyToGlobal(angles_rad, v_dot);
 
-    xdot << x_k(1, 0), v_dot(0, 0) + gx,
-        0.0,
+//     xdot << x_k(1, 0), v_dot(0, 0) + gx,
+//         0.0,
 
-        x_k(4, 0), v_dot(1, 0) + gy,
-        0.0,
+//         x_k(4, 0), v_dot(1, 0) + gy,
+//         0.0,
 
-        x_k(7, 0), v_dot(2, 0) + gz,
-        0.0;
-}
+//         x_k(7, 0), v_dot(2, 0) + gz,
+//         0.0;
+// }
 
 /**
  * @brief Update Kalman Gain at aech timestep.
@@ -575,40 +515,40 @@ void EKF::compute_kalman_gain()
  */
 void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
 {
-  /**
-   * struct GPS {
-    float latitude;
-    float longitude;
-    float altitude;
-    float speed;
-    int fix_type;
-    float time;
-};
-   * 
+    /**
+     * struct GPS {
+      float latitude;
+      float longitude;
+      float altitude;
+      float speed;
+      int fix_type;
+      float time;
+  };
+     *
 
 
-   lat, long, alt = GPS
-    lat = np.radians(lat)
-    long = np.radians(long)
+     lat, long, alt = GPS
+      lat = np.radians(lat)
+      long = np.radians(long)
 
-    e2 = (a**2 - b**2) / a**2                   # Eccentricity squared
-    N = a / np.sqrt(1 - e2 * np.sin(lat)**2)    # Prime vertical radius of curvature
+      e2 = (a**2 - b**2) / a**2                   # Eccentricity squared
+      N = a / np.sqrt(1 - e2 * np.sin(lat)**2)    # Prime vertical radius of curvature
 
-    x = (N + alt) * np.cos(lat) * np.cos(long)
-    y = (N + alt) * np.cos(lat) * np.sin(long)
-    z = ((1 - e2) * N + alt) * np.sin(lat)
+      x = (N + alt) * np.cos(lat) * np.cos(long)
+      y = (N + alt) * np.cos(lat) * np.sin(long)
+      z = ((1 - e2) * N + alt) * np.sin(lat)
 
-    return np.array([x, y, z])
-   *  */  
-    reference_GPS(gps, fsm); 
+      return np.array([x, y, z])
+     *  */
+    reference_GPS(gps, fsm);
 
-    float lat = gps.latitude/1e7; // deviding by 1e7 to convert from int to float
-    float lon = gps.longitude/1e7;
+    float lat = gps.latitude / 1e7; // deviding by 1e7 to convert from int to float
+    float lon = gps.longitude / 1e7;
     float alt = gps.altitude;
-    if(lat == gps_latitude_last && lon == gps_longitude_last){
+    if (lat == gps_latitude_last && lon == gps_longitude_last)
+    {
         return;
     }
-
 
     // Convert GPS to ECEF
 
@@ -619,28 +559,15 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     double dy = rocket_cords[1] - reference_cord[1];
     double dz = rocket_cords[2] - reference_cord[2];
 
-    
-    
-    float east  = -std::sin(gps_longitude_original) * dx + std::cos(gps_longitude_original) * dy;
-    float north = -std::sin(gps_latitude_original) * std::cos(gps_longitude_original) * dx
-            - std::sin(gps_latitude_original) * std::sin(gps_longitude_original) * dy
-            + std::cos(gps_latitude_original) * dz;
-    float up    = std::cos(gps_latitude_original) * std::cos(gps_longitude_original) * dx
-            + std::cos(gps_latitude_original) * std::sin(gps_longitude_original) * dy
-            + std::sin(gps_latitude_original) * dz;
-    
-
+    float east = -std::sin(gps_longitude_original) * dx + std::cos(gps_longitude_original) * dy;
+    float north = -std::sin(gps_latitude_original) * std::cos(gps_longitude_original) * dx - std::sin(gps_latitude_original) * std::sin(gps_longitude_original) * dy + std::cos(gps_latitude_original) * dz;
+    float up = std::cos(gps_latitude_original) * std::cos(gps_longitude_original) * dx + std::cos(gps_latitude_original) * std::sin(gps_longitude_original) * dy + std::sin(gps_latitude_original) * dz;
 
     // Update Kalman filter state CHECK THIS ORIENTATION ... NOT SURE IF THIS IS RIGHT
     x_k(3, 0) = east;
-    //x_k(3, 0) = north;
+    // x_k(3, 0) = north;
     x_k(6, 0) = up;
-    
-
 }
-
-
-
 
 void EKF::reference_GPS(GPS &gps, FSMState fsm)
 {
@@ -651,13 +578,11 @@ void EKF::reference_GPS(GPS &gps, FSMState fsm)
 
     if (fsm == FSMState::STATE_IDLE)
     {
-        gps_latitude_original = gps.latitude/1e7;
-        gps_longitude_original = gps.longitude/1e7;
+        gps_latitude_original = gps.latitude / 1e7;
+        gps_longitude_original = gps.longitude / 1e7;
         gps_latitude_last = gps_latitude_original;
         gps_longitude_last = gps_longitude_original;
     }
-    
-    
 }
 
 EKF ekf;
