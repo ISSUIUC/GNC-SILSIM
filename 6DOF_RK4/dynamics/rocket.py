@@ -14,7 +14,8 @@ import random
 import properties.properties as prop
 import properties.data_loader as dataloader
 import environment.atmosphere as atm
-from estimation.navigation import Navigation
+# Navigation/EKF not needed - EKF will be run by test_ekf.cpp
+# from estimation.navigation import Navigation
 
 class Rocket:
     motor = None
@@ -63,6 +64,8 @@ class Rocket:
             "imu_gyro_z": []
         }
         
+        self.fsm_state = []  # Track FSM state for each time point
+        
         #Import dataframe from CSV so it doesn't have to call it every time
 
         dir = os.path.dirname(os.path.dirname(os. path.abspath(__file__)))
@@ -98,7 +101,9 @@ class Rocket:
         self.motor_mass = stage_config["motor"]["motor_mass"]
         self.delay = stage_config["motor"]["delay"]
         self.motor_lookup_file = stage_config["motor"]["motor_lookup_file"]
-        self.Navigation = Navigation(dt, stage_config['sensors'], x0, self) 
+        # Navigation/EKF not needed - EKF will be run by test_ekf.cpp
+        # self.Navigation = Navigation(dt, stage_config['sensors'], x0, self)
+        self.Navigation = None 
 
         self.rocket_dry_mass = stage_config["rocket_body"]["dry_mass"]
         self.rocket_total_mass = self.rocket_dry_mass + self.motor_mass
@@ -356,7 +361,7 @@ class Rocket:
     
     
     # Appends data to rocket's storage
-    def add_to_dict(self, x, baro_alt, accel, bno_ang_pos, gyro, kalman_filter, kf_cov, kalman_filter_r, alpha, rocket_total_mass, motor_mass, flap_ext, dt):
+    def add_to_dict(self, x, baro_alt, accel, bno_ang_pos, gyro, kalman_filter, kf_cov, kalman_filter_r, alpha, rocket_total_mass, motor_mass, flap_ext, dt, fsm_state="STATE_IDLE"):
         # Append to sensor_dict
         self.sensor_dict["baro_alt"].append(baro_alt)
         self.sensor_dict["imu_accel_x"].append(accel[0])
@@ -392,6 +397,9 @@ class Rocket:
         self.sim_dict["alpha"].append(alpha)
         self.sim_dict["rocket_total_mass"].append(rocket_total_mass)
         self.sim_dict["motor_mass"].append(motor_mass)
+        
+        # Store FSM state
+        self.fsm_state.append(fsm_state)
 
         #Update coefficients (how to find angle of attack???)
         self.update_coeffs(np.linalg.norm(x[1]))
@@ -455,4 +463,160 @@ class Rocket:
             cur_point += map(str, list(self.kalman_dict["rz"][point]))
 
             record.append(cur_point)
+        return record
+    
+    # Converts the data saved in this sim into MIDAS Trimmed CSV format
+    def to_midas_csv(self):
+        """Outputs data in MIDAS Trimmed CSV format compatible with test_ekf.cpp
+        
+        Returns:
+            record: List of lists, where each inner list is a row of CSV data
+        """
+        import math
+        record = []
+        
+        # Default launch coordinates (can be configured)
+        launch_lat = 40.0  # Default latitude (degrees)
+        launch_lon = -88.0  # Default longitude (degrees)
+        launch_alt = 0.0  # Default altitude (meters)
+        
+        for point in range(len(self.sim_dict["time"])):
+            time_sec = self.sim_dict["time"][point]
+            time_ms = int(time_sec * 1000)  # Convert to milliseconds
+            
+            pos = self.sim_dict["pos"][point]
+            vel = self.sim_dict["vel"][point]
+            accel = self.sim_dict["accel"][point]
+            ang_pos = self.sim_dict["ang_pos"][point]
+            ang_vel = self.sim_dict["ang_vel"][point]
+            
+            baro_alt = self.sensor_dict["baro_alt"][point]
+            highg_ax = self.sensor_dict["imu_accel_x"][point]
+            highg_ay = self.sensor_dict["imu_accel_y"][point]
+            highg_az = self.sensor_dict["imu_accel_z"][point]
+            
+            # Low-g accelerometer (can use same as high-g or scaled)
+            lowg_ax = highg_ax * 0.1  # Scale down for low-g sensor
+            lowg_ay = highg_ay * 0.1
+            lowg_az = highg_az * 0.1
+            
+            # Barometer data
+            baro_pressure = self.atm.get_pressure(baro_alt) if self.atm else 101325.0
+            baro_temp = self.atm.get_temperature(baro_alt) if self.atm else 288.15
+            
+            # Orientation data (Euler angles from BNO)
+            orientation_yaw = self.sensor_dict["imu_ang_pos_x"][point]
+            orientation_pitch = self.sensor_dict["imu_ang_pos_y"][point]
+            orientation_roll = self.sensor_dict["imu_ang_pos_z"][point]
+            
+            # Angular velocity (from gyro)
+            ang_vel_x = self.sensor_dict["imu_gyro_x"][point]
+            ang_vel_y = self.sensor_dict["imu_gyro_y"][point]
+            ang_vel_z = self.sensor_dict["imu_gyro_z"][point]
+            
+            # GPS data (calculate from position - simplified)
+            # Convert position to lat/lon (rough approximation)
+            gps_lat = launch_lat + (pos[1] / 111320.0)  # meters per degree latitude
+            gps_lon = launch_lon + (pos[2] / (111320.0 * math.cos(math.radians(launch_lat))))
+            gps_alt = pos[0] + launch_alt
+            gps_speed = math.sqrt(vel[0]**2 + vel[1]**2 + vel[2]**2)
+            gps_fix_type = 3  # 3D fix
+            gps_time = time_ms
+            
+            # FSM state
+            fsm = self.fsm_state[point] if point < len(self.fsm_state) else "STATE_IDLE"
+            
+            # Magnetometer (placeholder - would need magnetic model)
+            mag_mx = 0.0
+            mag_my = 0.0
+            mag_mz = 0.0
+            
+            # Create row with all MIDAS fields
+            row = [
+                "orientation",  # sensor
+                "0",  # file number
+                str(time_ms),  # timestamp (milliseconds)
+                str(lowg_ax),  # lowg.ax
+                str(lowg_ay),  # lowg.ay
+                str(lowg_az),  # lowg.az
+                str(highg_ax),  # highg.ax
+                str(highg_ay),  # highg.ay
+                str(highg_az),  # highg.az
+                str(baro_temp - 273.15),  # barometer.temperature (convert K to C)
+                str(baro_pressure / 100.0),  # barometer.pressure (convert Pa to hPa)
+                str(baro_alt),  # barometer.altitude
+                "0",  # continuity.pins[0]
+                "0",  # continuity.pins[1]
+                "0",  # continuity.pins[2]
+                "0",  # continuity.pins[3]
+                "4.0",  # voltage.voltage
+                "0.1",  # voltage.current
+                str(gps_lat),  # gps.latitude
+                str(gps_lon),  # gps.longitude
+                str(gps_alt),  # gps.altitude
+                str(gps_speed),  # gps.speed
+                str(gps_fix_type),  # gps.fix_type
+                "8",  # gps.sats_in_view
+                str(gps_time),  # gps.time
+                str(mag_mx),  # magnetometer.mx
+                str(mag_my),  # magnetometer.my
+                str(mag_mz),  # magnetometer.mz
+                "1",  # orientation.has_data
+                "FULL_READING",  # orientation.reading_type
+                str(orientation_yaw),  # orientation.yaw
+                str(orientation_pitch),  # orientation.pitch
+                str(orientation_roll),  # orientation.roll
+                "0",  # orientation.orientation_velocity.vx
+                "0",  # orientation.orientation_velocity.vy
+                "0",  # orientation.orientation_velocity.vz
+                str(ang_vel_x),  # orientation.angular_velocity.vx
+                str(ang_vel_y),  # orientation.angular_velocity.vy
+                str(ang_vel_z),  # orientation.angular_velocity.vz
+                "0",  # orientation.orientation_acceleration.ax
+                "0",  # orientation.orientation_acceleration.ay
+                "0",  # orientation.orientation_acceleration.az
+                str(highg_ax),  # orientation.linear_acceleration.ax
+                str(highg_ay),  # orientation.linear_acceleration.ay
+                str(highg_az),  # orientation.linear_acceleration.az
+                str(ang_vel_x),  # orientation.gx
+                str(ang_vel_y),  # orientation.gy
+                str(ang_vel_z),  # orientation.gz
+                str(mag_mx),  # orientation.magnetometer.mx
+                str(mag_my),  # orientation.magnetometer.my
+                str(mag_mz),  # orientation.magnetometer.mz
+                str(baro_temp - 273.15),  # orientation.temperature
+                str(baro_pressure / 100.0),  # orientation.pressure
+                "0",  # orientation.tilt
+                "1",  # orientation.orientation_quaternion.w
+                "0",  # orientation.orientation_quaternion.x
+                "0",  # orientation.orientation_quaternion.y
+                "0",  # orientation.orientation_quaternion.z
+                str(ang_vel_x),  # lowglsm.gx
+                str(ang_vel_y),  # lowglsm.gy
+                str(ang_vel_z),  # lowglsm.gz
+                str(lowg_ax),  # lowglsm.ax
+                str(lowg_ay),  # lowglsm.ay
+                str(lowg_az),  # lowglsm.az
+                fsm,  # fsm
+                "0",  # kalman.position.px (not computed, EKF will compute)
+                "0",  # kalman.position.py
+                "0",  # kalman.position.pz
+                "0",  # kalman.velocity.vx
+                "0",  # kalman.velocity.vy
+                "0",  # kalman.velocity.vz
+                "0",  # kalman.acceleration.ax
+                "0",  # kalman.acceleration.ay
+                "0",  # kalman.acceleration.az
+                "0",  # kalman.altitude
+                "0",  # pyro.is_global_armed
+                "0",  # pyro.channel_firing[0]
+                "0",  # pyro.channel_firing[1]
+                "0",  # pyro.channel_firing[2]
+                "0",  # pyro.channel_firing[3]
+                "0",  # cameradata.camera_state
+                "0"   # cameradata.camera_voltage
+            ]
+            
+            record.append(row)
+        
         return record

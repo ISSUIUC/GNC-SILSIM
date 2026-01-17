@@ -41,8 +41,8 @@ import shutil
 sys.path.insert(0, os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..')))
 
-import estimation.ekf as ekf
-import estimation.r_ekf as r_ekf
+# import estimation.ekf as ekf  # Not needed - EKF will be run by test_ekf.cpp
+# import estimation.r_ekf as r_ekf  # Not needed - EKF will be run by test_ekf.cpp
 import properties.properties as prop
 import properties.data_loader as dataloader
 import simulator as sim_class
@@ -75,11 +75,14 @@ class Simulation:
     def idle_stage(self):
         while self.time_stamp < self.rocket.delay:
             baro_alt, accel, gyro, bno_ang_pos = self.get_sensor_data()
-            self.rocket.Navigation.update_state(baro_alt, accel, gyro, bno_ang_pos, self.time_stamp)
-            self.rocket.Navigation.kalman_filter.reset_lateral_pos()
-            current_state, current_covariance, current_state_r = self.get_kalman_state()
+            # EKF not run here - will be run by test_ekf.cpp
+            # Create dummy kalman data (zeros) since EKF will compute it
+            current_state = np.zeros(9)
+            current_covariance = np.zeros(9)
+            current_state_r = np.zeros(9)
+            fsm_state = "STATE_IDLE"
 
-            self.rocket.add_to_dict(self.x, baro_alt, accel, bno_ang_pos, gyro, current_state, current_covariance, current_state_r, 0, self.rocket.get_rocket_dry_mass(), self.rocket.get_total_motor_mass(self.time_stamp), 0, dt)
+            self.rocket.add_to_dict(self.x, baro_alt, accel, bno_ang_pos, gyro, current_state, current_covariance, current_state_r, 0, self.rocket.get_rocket_dry_mass(), self.rocket.get_total_motor_mass(self.time_stamp), 0, dt, fsm_state)
             self.time_step()
 
     def execute_stage(self):
@@ -90,20 +93,33 @@ class Simulation:
         ignition_time = self.time_stamp 
         start = True
         print(f"Staged at {self.time_stamp}")
-        while self.time_stamp < ignition_time + self.rocket.get_motor().get_burn_time() + stage_separation_delay:
+        burn_time = self.rocket.get_motor().get_burn_time()
+        
+        while self.time_stamp < ignition_time + burn_time + stage_separation_delay:
             # Get sensor data
             baro_alt, accel, gyro, bno_ang_pos = self.get_sensor_data()
             
+            # EKF not run here - will be run by test_ekf.cpp
+            # Create dummy kalman data (zeros) since EKF will compute it
+            current_state = np.zeros(9)
+            current_covariance = np.zeros(9)
+            current_state_r = np.zeros(9)
             
-            self.rocket.Navigation.update_state(baro_alt, accel, gyro, bno_ang_pos, self.time_stamp)
-            current_state, current_covariance, current_state_r = self.get_kalman_state()
+            # Determine FSM state based on flight phase
+            time_since_ignition = self.time_stamp - ignition_time
+            if self.rocket.current_stage == -1:
+                fsm_state = "STATE_FIRST_BOOST" if time_since_ignition < burn_time else "STATE_BURNOUT"
+            elif self.rocket.current_stage == 0:
+                fsm_state = "STATE_SECOND_BOOST" if time_since_ignition < burn_time else "STATE_BURNOUT"
+            else:
+                fsm_state = "STATE_FIRST_BOOST" if time_since_ignition < burn_time else "STATE_BURNOUT"
 
             self.rocket.set_motor_mass(self.time_stamp)
 
             is_staging = start and self.rocket.current_stage != -1
             self.x, alpha = sim.RK4(self.x, dt, self.time_stamp, is_staging, 0)
 
-            self.rocket.add_to_dict(self.x, baro_alt, accel, bno_ang_pos, gyro, current_state, current_covariance, current_state_r, alpha, self.rocket.get_rocket_dry_mass(), self.rocket.get_total_motor_mass(self.time_stamp), 0, dt)
+            self.rocket.add_to_dict(self.x, baro_alt, accel, bno_ang_pos, gyro, current_state, current_covariance, current_state_r, alpha, self.rocket.get_rocket_dry_mass(), self.rocket.get_total_motor_mass(self.time_stamp), 0, dt, fsm_state)
             self.time_step()
             if start:
                 start = False
@@ -121,22 +137,36 @@ class Simulation:
                 self.rocket.get_gyro_data(self.x, self.sensor_config), 
                 self.rocket.get_bno_orientation(self.x, self.sensor_config))
 
-    def get_kalman_state(self):
-        current_state = self.rocket.Navigation.kalman_filter.get_state()
-        current_cov = self.rocket.Navigation.kalman_filter.get_covariance()
-        current_state_r = self.rocket.Navigation.r_kalman_filter.get_state()
-        return (current_state, current_cov, current_state_r)
-
     def coast(self):
-        while self.x[1, 0] >= 0:
-        # Get sensor data
+        max_altitude = 0.0
+        apogee_reached = False
+        
+        while self.x[0, 0] >= 0:  # While altitude >= 0
+            # Get sensor data
             baro_alt, accel, gyro, bno_ang_pos = self.get_sensor_data()
-            self.rocket.Navigation.update_state(baro_alt, accel, gyro, bno_ang_pos, self.time_stamp)
-            current_state, current_covariance, current_state_r = self.get_kalman_state()
+            
+            # EKF not run here - will be run by test_ekf.cpp
+            # Create dummy kalman data (zeros) since EKF will compute it
+            current_state = np.zeros(9)
+            current_covariance = np.zeros(9)
+            current_state_r = np.zeros(9)
+            
+            # Track apogee and determine FSM state
+            current_altitude = self.x[0, 0]
+            if current_altitude > max_altitude:
+                max_altitude = current_altitude
+                fsm_state = "STATE_COAST"  # Still ascending, in coast phase
+            elif not apogee_reached and current_altitude < max_altitude - 1.0:  # 1m tolerance
+                apogee_reached = True
+                fsm_state = "STATE_APOGEE"
+            elif apogee_reached:
+                fsm_state = "STATE_COAST"  # Past apogee, descending
+            else:
+                fsm_state = "STATE_COAST"  # Default to coast
 
-            self.x, alpha = sim.RK4(self.x, dt, self.time_stamp, 0)
+            self.x, alpha = sim.RK4(self.x, dt, self.time_stamp, False, 0)
 
-            self.rocket.add_to_dict(self.x, baro_alt, accel, bno_ang_pos, gyro, current_state, current_covariance, current_state_r, alpha, self.rocket.get_rocket_dry_mass(), self.rocket.get_total_motor_mass(self.time_stamp), 0, dt)
+            self.rocket.add_to_dict(self.x, baro_alt, accel, bno_ang_pos, gyro, current_state, current_covariance, current_state_r, alpha, self.rocket.get_rocket_dry_mass(), self.rocket.get_total_motor_mass(self.time_stamp), 0, dt, fsm_state)
             self.time_step()
     
 def simulator(x0, rocket, motor, dt) -> None:
@@ -179,11 +209,19 @@ if __name__ == '__main__':
 
     simulator(x0, rocket, motor, dt)
 
-    print("Writing to file...")
+    print("Writing to MIDAS format CSV file...")
 
-    record = rocket.to_csv()
+    record = rocket.to_midas_csv()
     output_file = os.path.join(os.path.dirname(__file__), config["meta"]["output_file"])
+    
+    # MIDAS Trimmed CSV header
+    midas_header = "sensor,file number,timestamp,lowg.ax,lowg.ay,lowg.az,highg.ax,highg.ay,highg.az,barometer.temperature,barometer.pressure,barometer.altitude,continuity.pins[0],continuity.pins[1],continuity.pins[2],continuity.pins[3],voltage.voltage,voltage.current,gps.latitude,gps.longitude,gps.altitude,gps.speed,gps.fix_type,gps.sats_in_view,gps.time,magnetometer.mx,magnetometer.my,magnetometer.mz,orientation.has_data,orientation.reading_type,orientation.yaw,orientation.pitch,orientation.roll,orientation.orientation_velocity.vx,orientation.orientation_velocity.vy,orientation.orientation_velocity.vz,orientation.angular_velocity.vx,orientation.angular_velocity.vy,orientation.angular_velocity.vz,orientation.orientation_acceleration.ax,orientation.orientation_acceleration.ay,orientation.orientation_acceleration.az,orientation.linear_acceleration.ax,orientation.linear_acceleration.ay,orientation.linear_acceleration.az,orientation.gx,orientation.gy,orientation.gz,orientation.magnetometer.mx,orientation.magnetometer.my,orientation.magnetometer.mz,orientation.temperature,orientation.pressure,orientation.tilt,orientation.orientation_quaternion.w,orientation.orientation_quaternion.x,orientation.orientation_quaternion.y,orientation.orientation_quaternion.z,lowglsm.gx,lowglsm.gy,lowglsm.gz,lowglsm.ax,lowglsm.ay,lowglsm.az,fsm,kalman.position.px,kalman.position.py,kalman.position.pz,kalman.velocity.vx,kalman.velocity.vy,kalman.velocity.vz,kalman.acceleration.ax,kalman.acceleration.ay,kalman.acceleration.az,kalman.altitude,pyro.is_global_armed,pyro.channel_firing[0],pyro.channel_firing[1],pyro.channel_firing[2],pyro.channel_firing[3],cameradata.camera_state,cameradata.camera_voltage\n"
+    
     with open(output_file, 'w') as f:
-        f.write("time,pos_x,pos_y,pos_z,vel_x,vel_y,vel_z,accel_x,accel_y,accel_z,ang_pos_x,ang_pos_y,ang_pos_z,ang_vel_x,ang_vel_y,ang_vel_z,ang_accel_x,ang_accel_y,ang_accel_z,alpha,rocket_total_mass,motor_mass,flap_ext,baro_alt,imu_accel_x,imu_accel_y,imu_accel_z,imu_ang_pos_x,imu_ang_pos_y,imu_ang_pos_z,imu_gyro_x,imu_gyro_y,imu_gyro_z,kalman_pos_x,kalman_vel_x,kalman_accel_x,kalman_pos_y,kalman_vel_y,kalman_accel_y,kalman_pos_z,kalman_vel_z,kalman_accel_z,pos_cov_x,vel_cov_x,accel_cov_x,pos_cov_y,vel_cov_y,accel_cov_y,pos_cov_z,vel_cov_z,accel_cov_z,kalman_rpos_x,kalman_rvel_x,kalman_raccel_x,kalman_rpos_y,kalman_rvel_y,kalman_raccel_y,kalman_rpos_z,kalman_rvel_z,kalman_raccel_z\n")
+        f.write(midas_header)
         for point in record:
             f.write(f"{','.join(point)}\n")
+    
+    print(f"MIDAS format CSV written to: {output_file}")
+    print(f"Total data points: {len(record)}")
+    print("This file can now be used with test_ekf.cpp")
