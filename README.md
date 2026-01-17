@@ -14,6 +14,20 @@ source ./venv/bin/activate
 
 pip install -r requirements.txt
 
+## Running 6DOF Simulation
+
+PySIM is a 6DOF RK-4 based simulation that generates sensor data in MIDAS Trimmed CSV format. This simulated data can then be used to test the EKF implementation.
+
+To run the simulation:
+python 6DOF/simulation/pysim.py
+
+The simulation will:
+- Run a 6DOF rocket flight simulation
+- Generate sensor data (barometer, accelerometer, gyroscope, orientation)
+- Output a MIDAS format CSV file to `data/6DOF_RK4_SIMULATED.csv`
+
+This output file can then be used with `test_ekf.cpp` to test the EKF implementation (see Commands section below).
+
 ## Commands (in order)
 From the root of the folder, to compile the C++ files, run
 `cd gnc`
@@ -29,7 +43,9 @@ Then, to run the EKF file on a particular data file, run
 
 `./gnc/main "./data/MIDAS_booster.csv" "./output/results.csv"`
 
-The data file can be changed to any data file.
+The data file can be changed to any data file. You can also use the simulated data from PySIM:
+
+`./gnc/main "./data/6DOF_RK4_SIMULATED.csv" "./output/results.csv"`
 
 Finally, to create the graphs, run 
 
