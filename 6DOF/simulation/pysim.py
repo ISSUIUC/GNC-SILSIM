@@ -212,7 +212,10 @@ if __name__ == '__main__':
     print("Writing to MIDAS format CSV file...")
 
     record = rocket.to_midas_csv()
-    output_file = os.path.join(os.path.dirname(__file__), config["meta"]["output_file"])
+    # Save to data folder with MIDAS Trimmed naming convention
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data')
+    os.makedirs(data_dir, exist_ok=True)
+    output_file = os.path.join(data_dir, "6DOF_RK4_SIMULATED.csv")
     
     # MIDAS Trimmed CSV header
     midas_header = "sensor,file number,timestamp,lowg.ax,lowg.ay,lowg.az,highg.ax,highg.ay,highg.az,barometer.temperature,barometer.pressure,barometer.altitude,continuity.pins[0],continuity.pins[1],continuity.pins[2],continuity.pins[3],voltage.voltage,voltage.current,gps.latitude,gps.longitude,gps.altitude,gps.speed,gps.fix_type,gps.sats_in_view,gps.time,magnetometer.mx,magnetometer.my,magnetometer.mz,orientation.has_data,orientation.reading_type,orientation.yaw,orientation.pitch,orientation.roll,orientation.orientation_velocity.vx,orientation.orientation_velocity.vy,orientation.orientation_velocity.vz,orientation.angular_velocity.vx,orientation.angular_velocity.vy,orientation.angular_velocity.vz,orientation.orientation_acceleration.ax,orientation.orientation_acceleration.ay,orientation.orientation_acceleration.az,orientation.linear_acceleration.ax,orientation.linear_acceleration.ay,orientation.linear_acceleration.az,orientation.gx,orientation.gy,orientation.gz,orientation.magnetometer.mx,orientation.magnetometer.my,orientation.magnetometer.mz,orientation.temperature,orientation.pressure,orientation.tilt,orientation.orientation_quaternion.w,orientation.orientation_quaternion.x,orientation.orientation_quaternion.y,orientation.orientation_quaternion.z,lowglsm.gx,lowglsm.gy,lowglsm.gz,lowglsm.ax,lowglsm.ay,lowglsm.az,fsm,kalman.position.px,kalman.position.py,kalman.position.pz,kalman.velocity.vx,kalman.velocity.vy,kalman.velocity.vz,kalman.acceleration.ax,kalman.acceleration.ay,kalman.acceleration.az,kalman.altitude,pyro.is_global_armed,pyro.channel_firing[0],pyro.channel_firing[1],pyro.channel_firing[2],pyro.channel_firing[3],cameradata.camera_state,cameradata.camera_voltage\n"
