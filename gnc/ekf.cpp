@@ -5,7 +5,7 @@
 /**
  * The following program is the University of Illinois' Extended Kalman Filter, utilized for state estimation of
  * our single and multistage rockets. The program was developed since 2023 and had its first successful run (Booster) on LUNA, October 2025.
- *
+ * 
  * 2025-2026 GNC EKF Team: Divij Garg (Senior), Shishir Bhatta (Senior), Keshav Balaji (Senior), Tanish Mittal (Freshman), Amir Noormohammad (Aero MS), Ahmed Khan (Sophmore)
  * Maximilian Kulasik (Sophomore), Kailen Patel (Sophomore)
  */
@@ -76,11 +76,6 @@ void EKF::initialize(RocketSystems *args)
     H(2, 5) = 1;
     H(3, 8) = 1;
 
-    // Wind vector
-    // Wind(0, 0) = 0.0; // wind in x direction
-    // Wind(1, 0) = 0.0; // wind in y direction
-    // Wind(2, 0) = 0.0; // wind in z direction
-
     P_k.setZero();
     P_k.block<3, 3>(0, 0) = Eigen::Matrix3f::Identity() * 1e-2f; // x block (pos,vel,acc)
     P_k.block<3, 3>(3, 3) = Eigen::Matrix3f::Identity() * 1e-2f; // y block
@@ -127,8 +122,6 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
         {
             sum += i;
         }
-        P_k(4, 4) = 1e-6f; // variance for vel_y
-        P_k(7, 7) = 1e-6f; // variance for vel_z
         KalmanState kalman_state = (KalmanState){sum / 10.0f, 0, 0, 0, 0, 0, 0, 0, 0};
         setState(kalman_state);
     }
@@ -145,7 +138,8 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     (sensor_accel_global_g)(2, 0) = acceleration.az - 0.06;
 
     euler_t angles_rad = orientation.getEuler();
-    // angles_rad.yaw = -angles_rad.yaw; // coordinate frame match
+
+    std::cout <<angles_rad.pitch <<std::endl;
 
     BodyToGlobal(angles_rad, sensor_accel_global_g);
 
@@ -184,23 +178,6 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     state.position = (Position){kalman_state.state_est_pos_x, kalman_state.state_est_pos_y, kalman_state.state_est_pos_z};
     state.velocity = (Velocity){kalman_state.state_est_vel_x, kalman_state.state_est_vel_y, kalman_state.state_est_vel_z};
     state.acceleration = (Acceleration){kalman_state.state_est_accel_x, kalman_state.state_est_accel_y, kalman_state.state_est_accel_z};
-
-    // if (FSM_state > FSMState::STATE_IDLE)
-    // {
-    //     current_vel += (s_dt)*y_k(1, 0);
-    //     Eigen::Matrix<float, 9, 1> measured_v = Eigen::Matrix<float, 9, 1>::Zero();
-    //     measured_v(0, 0) = current_vel;
-    // measured_v(0,0) = y_k(1) + (dt/2)*y_k(2);
-    // Eigen::Matrix<float, 9, 1> err = Eigen::Matrix<float, 9, 1>::Zero();
-    // err(0, 0) = measured_v(0, 0) - x_k(1, 0);
-    // Wind = Wind_alpha * Wind + (1 - Wind_alpha) * err;
-    // if (Wind.norm() > 15)
-    // {
-    //     Wind(0, 0) = 15.0;
-    //     Wind(1, 0) = 0.0;
-    //     Wind(2, 0) = 0.0;
-    // }
-    // }
 }
 
 /**
@@ -334,65 +311,6 @@ void EKF::setF(float dt, float w_x, float w_y, float w_z, FSMState fsm, float v_
     F_mat(7, 8) = dt;        
 }
 
-// /**
-//  * @brief Returns the approximate thrust force from the motor given the thurst curve
-//  *
-//  * @param timestamp Time since most recent ignition
-//  * @param angles Current orientation of the rocket
-//  * @param FSM_state Current FSM state
-//  *
-//  * @return Thrust force in the body frame
-//  *
-//  * The thrust force is calculated by interpolating the thrust curve data which is stored in an ordered map (see top of file).
-//  * The thrust curve data is different for the booster and sustainer stages, so the function checks the FSM state to determine
-//  * which thrust curve to use. The time since ignition is also important to consider so that is reset once we reach a new stage.
-//  * The thrust force is then rotated into the body frame using the BodyToGlobal function.
-//  */
-// void EKF::getThrust(float timestamp, const euler_t &angles, FSMState FSM_state, Eigen::Vector3f &thrust_out)
-// {
-//     // Pick which motor thrust curve to use
-//     const std::map<float, float> *thrust_curve = nullptr;
-
-//     if (FSM_state == STATE_FIRST_BOOST)
-//     {
-//         thrust_curve = &motor_data.at("Booster"); // Booster
-//     }
-//     else if (FSM_state == STATE_SECOND_BOOST)
-//         thrust_curve = &motor_data.at("Sustainer"); // Sustainer
-//     else
-//     {
-//         thrust_out.setZero();
-//         return; // No thrust before ignition
-//     }
-
-//     // Handle case where timestamp is before or after available data
-//     if (timestamp <= thrust_curve->begin()->first)
-//     {
-//         thrust_out = Eigen::Vector3f(thrust_curve->begin()->second, 0.f, 0.f);
-//     }
-//     else if (timestamp >= thrust_curve->rbegin()->first)
-//     {
-//         thrust_out.setZero(); // assume motor burned out after curve ends
-//     }
-//     else
-//     {
-//         // Find interpolation interval
-//         auto it_upper = thrust_curve->lower_bound(timestamp);
-//         auto it_lower = std::prev(it_upper);
-
-//         float x0 = it_lower->first;
-//         float y0 = it_lower->second;
-//         float x1 = it_upper->first;
-//         float y1 = it_upper->second;
-
-//         float interpolated_thrust = linearInterpolation(x0, y0, x1, y1, timestamp);
-//         thrust_out = Eigen::Vector3f(interpolated_thrust, 0.f, 0.f);
-//     }
-
-//     // Rotate from body to global
-//     // BodyToGlobal(angles, thrust_out);
-// }
-
 /**
  * @brief Computes the rockets mass throughout the flight.
  *
@@ -411,92 +329,6 @@ void EKF::compute_mass(FSMState fsm)
      * @todo add the sustainer code.
      */
 }
-
-// /**
-//  * @brief Computes the rockets' drag coefficients.
-//  *
-//  * The following takes the velocity of the rocket and calculates the drag coefficients, storing them in a global variable.
-
-//  * @param vel_magnitude_ms: Current velocity magnitude of the rocket
-//  * @todo Include the calculations for the other drag coefficients
-//  */
-// void EKF::compute_drag_coeffs(float vel_magnitude_ms)
-// {
-//     float mach = vel_magnitude_ms / a;
-//     int index = std::round(mach / 0.04);
-//     index = std::clamp(index, 0, (int)AERO_DATA_SIZE - 1);
-//     Ca = aero_data[index].CA_power_on;
-// }
-
-// /**
-//  * @brief Computes the rockets' change in velocity and acceleration based on its current iteration.
-//  *
-//  * The following takes the rocket's current orientation data and uses that to calculate its x_dot, which is change in velocity and acceleration.
-//  * Using thrust data, aerodynamic data, and gravity, the program calculates the changes and returns it in the global frame.
-
-//  * @param dt: Current change in time
-//  * @param orientation, fsm: Current rocket data used.
-//  * @param xdot: Reference to the vector where the final xdot is stored,
-//  * @todo Fix reference frames, include better dynamics.
-//  */
-// void EKF::compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot)
-// {
-//     euler_t angles_rad = orientation.getEuler();
-//     Velocity omega_rps = orientation.getAngularVelocity(); // rads per sec
-//     // ignore effects of gravity when on pad
-//     Eigen::Matrix<float, 3, 1> g_global = Eigen::Matrix<float, 3, 1>::Zero();
-//     if ((fsm > FSMState::STATE_IDLE))
-//     {
-//         g_global(0, 0) = -gravity_ms2;
-//     }
-//     else
-//     {
-//         g_global(0, 0) = 0;
-//     }
-//     float vel_mag_squared_ms = ((x_k(1, 0)) * (x_k(1, 0))) + x_k(4, 0) * x_k(4, 0) + x_k(7, 0) * x_k(7, 0);
-//     float vel_magnitude_ms = pow(vel_mag_squared_ms, 0.5);
-
-//     // aerodynamic force
-//     // Body frame
-//     float Fax = 0; // instead of mag square --> mag * vel_x
-//     if ((fsm > FSMState::STATE_IDLE))
-//     {
-//         Fax = -0.5 * rho * (vel_magnitude_ms) * float(Ca) * (pi * r * r) * x_k(1, 0);
-//     }
-//     float Fay = 0; // assuming no aerodynamic effects
-//     float Faz = 0; // assuming no aerodynamic effects
-
-//     // acceleration due to gravity
-//     float gx = g_global(0, 0);
-//     float gy = g_global(1, 0);
-//     float gz = g_global(2, 0);
-
-//     // thurst force, body frame
-//     Eigen::Matrix<float, 3, 1> Ft_body;
-//     EKF::getThrust(stage_timestamp, angles_rad, fsm, Ft_body);
-
-//     // body frame
-//     float Ftx = Ft_body(0, 0);
-//     float Fty = Ft_body(1, 0);
-//     float Ftz = Ft_body(2, 0);
-
-//     Eigen::Matrix<float, 3, 1> v_dot; // we compute everything in the body frame for accelerations, and then convert those accelerations to global frame
-//     v_dot << ((Fax + Ftx) / curr_mass_kg),
-//         ((Fay + Fty) / curr_mass_kg),
-//         ((Faz + Ftz) / curr_mass_kg);
-
-//     BodyToGlobal(angles_rad, v_dot);
-
-//     xdot << x_k(1, 0), v_dot(0, 0) + gx,
-//         0.0,
-
-//         x_k(4, 0), v_dot(1, 0) + gy,
-//         0.0,
-
-//         x_k(7, 0), v_dot(2, 0) + gz,
-//         0.0;
-// }
-
 /**
  * @brief Update Kalman Gain at aech timestep.
  *
