@@ -77,21 +77,20 @@ echo ""
 
 echo -e "${YELLOW}Step 1: Building code...${NC}"
 
-# Check for Eigen3
-if ! pkg-config --exists eigen3; then
-    echo -e "${RED}[ERROR] Eigen3 not found. Please install Eigen3:${NC}"
-    echo "  macOS: brew install eigen"
-    echo "  Ubuntu: sudo apt-get install libeigen3-dev"
-    echo "  Or download from: https://eigen.tuxfamily.org/"
-    exit 1
-fi
+# # Check for Eigen3
+# if ! pkg-config --exists eigen3; then
+#     echo -e "${RED}[ERROR] Eigen3 not found. Please install Eigen3:${NC}"
+#     echo "  macOS: brew install eigen"
+#     echo "  Ubuntu: sudo apt-get install libeigen3-dev"
+#     echo "  Or download from: https://eigen.tuxfamily.org/"
+#     exit 1
+# fi
 
-EIGEN_INCLUDE=$(pkg-config --cflags eigen3 | sed 's/-I//')
+# EIGEN_INCLUDE=$(pkg-config --cflags eigen3 | sed 's/-I//')
 
-echo "Compiling with Eigen at: $EIGEN_INCLUDE"
+# echo "Compiling with Eigen at: $EIGEN_INCLUDE"
 
 g++ -std=c++17 -O2 -Wall -Wextra \
-    -I"$EIGEN_INCLUDE" \
     -I. \
     -Ignc \
     gnc/test_ekf.cpp \
