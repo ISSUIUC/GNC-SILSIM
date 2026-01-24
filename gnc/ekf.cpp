@@ -5,7 +5,7 @@
 /**
  * The following program is the University of Illinois' Extended Kalman Filter, utilized for state estimation of
  * our single and multistage rockets. The program was developed since 2023 and had its first successful run (Booster) on LUNA, October 2025.
- * 
+ *
  * 2025-2026 GNC EKF Team: Divij Garg (Senior), Shishir Bhatta (Senior), Keshav Balaji (Senior), Tanish Mittal (Freshman), Amir Noormohammad (Aero MS), Ahmed Khan (Sophmore)
  * Maximilian Kulasik (Sophomore), Kailen Patel (Sophomore)
  */
@@ -99,7 +99,7 @@ void EKF::initialize(RocketSystems *args)
 void EKF::priori(float dt, Orientation &orientation, FSMState fsm)
 {
     x_priori = F_mat * x_k;
-    setF(dt, 0, 0, 0, fsm, 0,0,0);
+    setF(dt, 0, 0, 0, fsm, 0, 0, 0);
     P_priori = (F_mat * P_k * F_mat.transpose()) + Q;
 }
 
@@ -138,7 +138,6 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     (sensor_accel_global_g)(2, 0) = acceleration.az - 0.06;
 
     euler_t angles_rad = orientation.getEuler();
-
 
     BodyToGlobal(angles_rad, sensor_accel_global_g);
 
@@ -209,7 +208,7 @@ void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration accelerati
 
         // std::cout << "Quaternion: w=" << quat(0,0)<< ", x=" << quat(1,0)
         //           << ", y=" << quat(2,0)<< ", z=" <<quat(3,0)<< std::endl;
-       
+
         // compute_gps_inputs(gps, FSM_state); // testing GPS inputs
     }
 }
@@ -298,16 +297,16 @@ void EKF::
 void EKF::setF(float dt, float w_x, float w_y, float w_z, FSMState fsm, float v_x, float v_y, float v_z)
 
 {
-    F_mat.setIdentity(); 
-    F_mat(0, 1) = dt;        
-    F_mat(0, 2) = 0.5f * dt * dt; 
-    F_mat(1, 2) = dt;        
-    F_mat(3, 4) = dt;      
-    F_mat(3, 5) = 0.5f * dt * dt; 
-    F_mat(4, 5) = dt;     
-    F_mat(6, 7) = dt;       
+    F_mat.setIdentity();
+    F_mat(0, 1) = dt;
+    F_mat(0, 2) = 0.5f * dt * dt;
+    F_mat(1, 2) = dt;
+    F_mat(3, 4) = dt;
+    F_mat(3, 5) = 0.5f * dt * dt;
+    F_mat(4, 5) = dt;
+    F_mat(6, 7) = dt;
     F_mat(6, 8) = 0.5f * dt * dt;
-    F_mat(7, 8) = dt;        
+    F_mat(7, 8) = dt;
 }
 
 /**
