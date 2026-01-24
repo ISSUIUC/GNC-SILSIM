@@ -139,7 +139,6 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
 
     euler_t angles_rad = orientation.getEuler();
 
-    std::cout <<angles_rad.pitch <<std::endl;
 
     BodyToGlobal(angles_rad, sensor_accel_global_g);
 
