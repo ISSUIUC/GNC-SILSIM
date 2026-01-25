@@ -1,6 +1,6 @@
 #pragma once
 
-#include "kalman_filter.h
+#include "kalman_filter.h" 
 #include "sensor_data.h" // for sim
 #include "Buffer.h" // for sim
 #include "constants.h"
@@ -50,3 +50,4 @@ private:
 
 
 extern EKF ekf;
+
