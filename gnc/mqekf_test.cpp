@@ -19,7 +19,7 @@ int main()
     mekf.initialize_from_acc_mag(acc0, mag0);
     Eigen::Matrix<float, 4, 1> quat = mekf.quaternion();
 
-    std::cout << "[" << quat[0] << ", " << quat[1] << ", " << quat[2] << ", " << quat[3] << "]" << std::endl;
+    std::cout << "[" << quat[0] << ", " << quat[1] << ", " << quat[2] << ", " << quat[3] << "]," << std::endl;
 
     Eigen::Matrix<float, 3, 1> gyr = {0.05, 0, 0};
     Eigen::Matrix<float, 3, 1> acc = {-9.8, 0, 0};
@@ -46,9 +46,9 @@ int main()
     }
 
     quat = mekf.quaternion();
-    std::cout << "[" << quat[0] << ", " << quat[1] << ", " << quat[2] << ", " << quat[3] << "]" << std::endl;
+    std::cout << "[" << quat[0] << ", " << quat[1] << ", " << quat[2] << ", " << quat[3] << "]," << std::endl;
 
     Eigen::Matrix<float, 3, 1> bias = mekf.gyroscope_bias();
-    std::cout << "[" << bias[0] << ", " << bias[1] << ", " << bias[2] << "]" << std::endl;
+    std::cout << "[" << bias[0] << ", " << bias[1] << ", " << bias[2] << "]," << std::endl;
     outfile.close();
 }
