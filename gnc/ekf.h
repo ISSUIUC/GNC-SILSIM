@@ -62,6 +62,10 @@ private:
     std::vector<float> starting_gps;    // latitude, longitude, altitude
     std::vector<float> starting_ecef;   // x, y, z
 
+    float last_gps_latitude =0.0f;
+    float last_gps_longitude =0.0f; //used to track if the gps updated
+
+
     // Eigen::Matrix<float,3,1> gravity = Eigen::Matrix<float,3,1>::Zero();
     KalmanState kalman_state;
     FSMState last_fsm = FSMState::STATE_IDLE;

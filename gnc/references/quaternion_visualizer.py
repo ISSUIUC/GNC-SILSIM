@@ -4,7 +4,7 @@ import pandas as pd
 from scipy.spatial.transform import Rotation as R
 from matplotlib.animation import FuncAnimation
 
-df = pd.read_csv("../gnc/references/mqekf_quaternion_output.csv")
+df = pd.read_csv("mqekf_quaternion_output.csv")
 
 quaternions = np.array(
     [

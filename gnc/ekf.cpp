@@ -163,8 +163,17 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     y_k(0, 0) = barometer.altitude; // meters
 
     std::vector<float> gps_data = compute_gps_inputs(gps, FSM_state); // testing GPS inputs
-    y_k(1, 0) = gps_data[0];                                          // meters
-    y_k(2, 0) = gps_data[1];                                          // meters
+    if (gps_data[0] == 0.0f && gps_data[1] == 0.0f)
+    {
+        y_k(1, 0) = x_priori(3, 0); // meters
+        y_k(2, 0) = x_priori(6, 0); // meters
+        // std::cout<<"ran"<<std::endl;
+    }
+    else
+    {
+        y_k(1, 0) = gps_data[0];
+        y_k(2, 0) = gps_data[1];
+    }
 
     // # Posteriori Update
     Eigen::Matrix<float, 9, 9> identity = Eigen::Matrix<float, 9, 9>::Identity();
@@ -328,7 +337,8 @@ void EKF::compute_kalman_gain()
 std::vector<float> EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
 {
     if (gps.latitude == 0 || gps.longitude == 0)
-        return std::vector<float>(0, 0);
+        return std::vector<float>{0.0f, 0.0f, 0.0f};
+
 
     // Set up starting GPS
     if (fsm == FSMState::STATE_IDLE)
@@ -337,10 +347,15 @@ std::vector<float> EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
         starting_ecef = gps_to_ecef(starting_gps[0], starting_gps[1], starting_gps[2]);
     }
 
+
     // GPS degrees are given as integers
     float curr_lat = gps.latitude / 1e7;
     float curr_lon = gps.longitude / 1e7;
     float curr_alt = gps.altitude;
+
+    if(abs(curr_lat - last_gps_latitude) < 1e-6 &&abs(curr_lon - last_gps_longitude) < 1e-6){
+        return std::vector<float>{0.0f, 0.0f, 0.0f};
+    }
 
     // Convert current GPS to ECEF and then ECEF to ENU
     std::vector<float> curr_ecef = gps_to_ecef(curr_lat, curr_lon, curr_alt);
@@ -349,6 +364,8 @@ std::vector<float> EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     // x_k(3, 0) = enu[0]; // y = east
     // x_k(6, 0) = enu[1]; // z = north
 
+    last_gps_latitude = curr_lat;
+    last_gps_longitude = curr_lon;
     return enu;
 }
 
