@@ -209,7 +209,7 @@ void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration accelerati
         // std::cout << "Quaternion: w=" << quat(0,0)<< ", x=" << quat(1,0)
         //           << ", y=" << quat(2,0)<< ", z=" <<quat(3,0)<< std::endl;
 
-        // compute_gps_inputs(gps, FSM_state); // testing GPS inputs
+        compute_gps_inputs(gps, FSM_state); // testing GPS inputs
     }
 }
 
@@ -375,7 +375,7 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     float lat = gps.latitude / 1e7; // deviding by 1e7 to convert from int to float
     float lon = gps.longitude / 1e7;
     float alt = gps.altitude;
-    if (lat == gps_latitude_last && lon == gps_longitude_last)
+    if (abs(lat - gps_latitude_last) <= 1e-5 && abs(lon - gps_longitude_last) <= 1e-5)
     {
         return;
     }
@@ -385,18 +385,20 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     std::vector<float> rocket_cords = ECEF(lat, lon, alt);
     std::vector<float> reference_cord = ECEF(gps_latitude_original, gps_longitude_original, 0);
 
+    float gps_latitude_original_rad = gps_latitude_original * pi / 180;
+    float gps_longitude_original_rad = gps_longitude_original * pi / 180;
+
     double dx = rocket_cords[0] - reference_cord[0];
     double dy = rocket_cords[1] - reference_cord[1];
     double dz = rocket_cords[2] - reference_cord[2];
 
-    float east = -std::sin(gps_longitude_original) * dx + std::cos(gps_longitude_original) * dy;
-    float north = -std::sin(gps_latitude_original) * std::cos(gps_longitude_original) * dx - std::sin(gps_latitude_original) * std::sin(gps_longitude_original) * dy + std::cos(gps_latitude_original) * dz;
-    float up = std::cos(gps_latitude_original) * std::cos(gps_longitude_original) * dx + std::cos(gps_latitude_original) * std::sin(gps_longitude_original) * dy + std::sin(gps_latitude_original) * dz;
+    float east = -std::sin(gps_longitude_original_rad) * dx + std::cos(gps_longitude_original_rad) * dy;
+    float north = -std::sin(gps_latitude_original_rad) * std::cos(gps_longitude_original_rad) * dx - std::sin(gps_latitude_original_rad) * std::sin(gps_longitude_original_rad) * dy + std::cos(gps_latitude_original_rad) * dz;
+    float up = std::cos(gps_latitude_original_rad) * std::cos(gps_longitude_original_rad) * dx + std::cos(gps_latitude_original_rad) * std::sin(gps_longitude_original_rad) * dy + std::sin(gps_latitude_original_rad) * dz;
 
     // Update Kalman filter state CHECK THIS ORIENTATION ... NOT SURE IF THIS IS RIGHT
     x_k(3, 0) = east;
-    // x_k(3, 0) = north;
-    x_k(6, 0) = up;
+    x_k(6, 0) = north;
 }
 
 void EKF::reference_GPS(GPS &gps, FSMState fsm)
