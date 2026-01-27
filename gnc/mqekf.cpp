@@ -1,50 +1,20 @@
 #pragma once
-
-#include "Eigen.h"
+//#include "Eigen.h"
 #include "mqekf.h"
-
-
-// template <typename float = float, bool with_bias = true>
-class QuaternionMEKF
-{
-    // State dimension
-    // static constexpr int N = with_bias ? 6 : 3;
-    // Measurement dimension
-    // static const int M = 6;
-
-    // typedef Matrix<float, 3, 1> Vector3;
-    // typedef Matrix<float, 4, 1> Vector4;
-    // typedef Matrix<float, 6, 1> Vector6;
-    // typedef Matrix<float, N, N> MatrixN;
-    // typedef Matrix<float, 3, 3> Matrix3;
-    // typedef Matrix<float, 4, 4> Matrix4;
-    // typedef Matrix<float, M, M> MatrixM;
-    // static constexpr float half = float(1) / float(2);
-
-    
-};
+#include <Eigen/Dense>
 
 
 // THIS ONE
 void QuaternionMEKF::QuaternionMEKF(Vector3 const& sigma_a, Vector3 const& sigma_g, Vector3 const& sigma_m, float Pq0, float Pb0)
     :
-      Q( initialize_Q(sigma_g) ),
-      Racc( sigma_a.array().square().matrix().asDiagonal()),
-      Rmag( sigma_m.array().square().matrix().asDiagonal()),
+      Q( initialize_Q(sigma_g) ),      
       R( (Vector6() << sigma_a, sigma_m).finished().array().square().matrix().asDiagonal() )
 {
     qref.setIdentity();     //  q is now (w:1, x:0, y:0, z:0)
-    x.setZero(); // 
+    x.setZero(); 
 
-    if constexpr (with_bias)
-    {
-        P << Pq0*Matrix3::Identity(), Matrix3::Zero(),
-             Matrix3::Zero(), Pb0*Matrix3::Identity();
-    }
-    else
-    {
-        P = Pq0*Matrix3::Identity();
-    }
+    P << Pq0*Matrix3::Identity(), Matrix3::Zero(),
+            Matrix3::Zero(), Pb0*Matrix3::Identity();
 }
 
 void QuaternionMEKF::initialize_from_acc(Vector3 const& acc)
@@ -62,14 +32,7 @@ void QuaternionMEKF::initialize_from_acc(float const acc[3])
 
 void QuaternionMEKF::time_update(Vector3 const& gyr, float Ts)
 {
-    if constexpr (with_bias)
-    {
-        set_transition_matrix(gyr - x.tail(3), Ts);
-    }
-    else
-    {
-        set_transition_matrix(gyr, Ts);
-    }
+    set_transition_matrix(gyr - x.tail(3), Ts);
 
     // Quaternionf.coeffs() get the components in [x,y,z,w] order
     qref = F * qref.coeffs();
@@ -77,15 +40,8 @@ void QuaternionMEKF::time_update(Vector3 const& gyr, float Ts)
     
     MatrixN F_a;
     // Slice 3x3 block from F
-    if constexpr (with_bias)
-    {
-        F_a << F.block(0, 0, 3, 3), (-Matrix3::Identity()*Ts),
-               Matrix3::Zero(), Matrix3::Identity();
-    }
-    else
-    {
-        F_a = F.block(0, 0, 3, 3);
-    }
+    F_a << F.block(0, 0, 3, 3), (-Matrix3::Identity()*Ts),
+            Matrix3::Zero(), Matrix3::Identity();
     P = F_a * P * F_a.transpose() + Q;  // P update
 }
 
