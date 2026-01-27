@@ -7,6 +7,7 @@
 #define B (A * (1 - F))                  // Polar radius
 #define E_SQ ((A * A - B * B) / (A * A)) // Eccentricity squared
 #define pi 3.1415
+
 /**
  * @brief Converts a vector in the body frame to the global frame
  *
@@ -79,17 +80,46 @@ void GlobalToBody(Angles &angles_rad, Eigen::Matrix<float, 3, 1> &global_vec)
     global_vec = (R_zup_to_xup * rotation_matrix).transpose() * global_vec;
 }
 
-inline std::vector<float> ECEF(float lat, float lon, float alt)
-{
+/**
+ * @brief Converts GPS (degrees) to ECEF (meters)
+ * @return Vector of ECEF coordinates {X, Y, Z}
+ */
+inline std::vector<float> gps_to_ecef(float lat, float lon, float alt) {
+    // Convert to radians
     lat *= pi / 180.0;
     lon *= pi / 180.0;
-    double N = A / std::sqrt(1 - E_SQ * std::sin(lat) * std::sin(lat)); // Radius of curvature in the prime vertical
 
-    float x = (N + alt) * std::cos(lat) * std::cos(lon);
-    float y = (N + alt) * std::cos(lat) * std::sin(lon);
-    float z = ((1 - E_SQ) * N + alt) * std::sin(lat); // Semi-minor axis of Earth in meters
+    double N = A / std::sqrt(1 - E_SQ * std::sin(lat) * std::sin(lat));
 
-    return {x, y, z};
+    float ecef_x = (N + alt) * std::cos(lat) * std::cos(lon);
+    float ecef_y = (N + alt) * std::cos(lat) * std::sin(lon);
+    float ecef_z = ((1 - E_SQ) * N + alt) * std::sin(lat);
+
+    return {ecef_x, ecef_y, ecef_z};
+}
+
+/**
+ * @brief Converts the current ECEF (meters) to ENU (meters) based on a reference in both ECEF (meters) and GPS (degrees)
+ * @return Vector of ENU coordinates {East, North, Up}
+ */
+inline std::vector<float> ecef_to_enu(std::vector<float> curr_ecef, std::vector<float> ref_ecef, std::vector<float> ref_gps) {
+    float ref_lat = ref_gps[0] * pi / 180.0;
+    float ref_lon = ref_gps[1] * pi / 180.0;
+
+    float dx = curr_ecef[0] - ref_ecef[0];
+    float dy = curr_ecef[1] - ref_ecef[1];
+    float dz = curr_ecef[2] - ref_ecef[2];
+
+    float east  = - std::sin(ref_lon) * dx 
+                  + std::cos(ref_lon) * dy;
+    float north = - std::sin(ref_lat) * std::cos(ref_lon) * dx
+                  - std::sin(ref_lat) * std::sin(ref_lon) * dy
+                  + std::cos(ref_lat) * dz;
+    float up    =   std::cos(ref_lat) * std::cos(ref_lon) * dx
+                  + std::cos(ref_lat) * std::sin(ref_lon) * dy
+                  + std::sin(ref_lat) * dz;
+
+    return {east, north, up};
 }
 
 // void eulerToQuaternion(

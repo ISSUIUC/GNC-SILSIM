@@ -38,7 +38,6 @@ public:
     void compute_kalman_gain();
     void compute_gps_inputs(GPS &gps, FSMState fsm);
     void reference_GPS(GPS &gps, FSMState fsm); 
-    // std::vector<float> ECEF(float lat, float lon, float alt);
 
     // void compute_drag_coeffs(float vel_magnitude_ms);
     // void compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot);
@@ -60,10 +59,8 @@ private:
     float Wind_alpha = 0.85f;
     float Cp = 0;
     float curr_mass_kg = mass_full; //(kg) Sustainer + Booster, but value changes over time.
-    float gps_latitude_original;
-    float gps_longitude_original;
-    float gps_latitude_last; //we don't want to update gps if it's the same as the previously updated value.
-    float gps_longitude_last;//we don't want to update gps if it's the same as the previously updated value.
+    std::vector<float> starting_gps;    // latitude, longitude, altitude
+    std::vector<float> starting_ecef;   // x, y, z
 
     // Eigen::Matrix<float,3,1> gravity = Eigen::Matrix<float,3,1>::Zero();
     KalmanState kalman_state;
