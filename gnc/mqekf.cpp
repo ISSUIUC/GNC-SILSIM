@@ -1,14 +1,12 @@
-#pragma once
-// #include "Eigen.h"
 #include "mqekf.h"
 
 QuaternionMEKF::QuaternionMEKF(
     const Eigen::Matrix<float, 3, 1> &sigma_a,
     const Eigen::Matrix<float, 3, 1> &sigma_g,
-    const Eigen::Matrix<float, 3, 1> &sigma_m,
-    float Pq0,
-    float Pb0)
+    const Eigen::Matrix<float, 3, 1> &sigma_m)
 {
+    float Pq0 = 1e-6;
+    float Pb0 = 1e-1;
     Q = initialize_Q(sigma_g);
 
     Eigen::Matrix<float, 6, 1> sigmas;
@@ -52,17 +50,17 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
     C << C1, Eigen::Matrix<float, 3, 3>::Zero(),
         C2, Eigen::Matrix<float, 3, 3>::Zero();
 
-    Eigen::Matrix<double, 6, 1> yhat;
+    Eigen::Matrix<float, 6, 1> yhat;
     yhat << v1hat,
         v2hat;
 
-    Eigen::Matrix<double, 6, 1> y;
+    Eigen::Matrix<float, 6, 1> y;
     y << acc,
         mag;
 
-    Eigen::Matrix<double, 6, 1> inno = y - yhat;
+    Eigen::Matrix<float, 6, 1> inno = y - yhat;
 
-    MatrixM const s = C * P * C.transpose() + R;
+    Eigen::Matrix<float, 6, 6> const s = C * P * C.transpose() + R;
 
     // K = P * C.float *(s)^-1
     // K * s = P*C.float
@@ -70,10 +68,10 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
     // This is the form
     // x * A = b
     // Which can be solved with the code below
-    Eigen::FullPivLU<MatrixM> lu(s); //  LU decomposition of s
+    Eigen::FullPivLU<Eigen::Matrix<float, 6, 6>> lu(s); //  LU decomposition of s
     if (lu.isInvertible())
     {
-        Matrix<float, 6, 6> const K = P * C.transpose() * lu.inverse(); // gain
+        Eigen::Matrix<float, 6, 6> const K = P * C.transpose() * lu.inverse(); // gain
 
         x += K * inno; // applying correction???
 
@@ -81,7 +79,7 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
         Eigen::Matrix<float, 6, 6> const temp = Eigen::Matrix<float, 6, 6>::Identity() - K * C;
         P = temp * P * temp.transpose() + K * R * K.transpose(); // covariance update???
         // Apply correction to qref
-        Quaternion<float> corr(1, half * x(0), half * x(1), half * x(2)); // small angle approx????
+        Eigen::Quaternion<float> corr(1, 0.5f  * x(0), 0.5f  * x(1), 0.5f  * x(2)); // small angle approx????
         corr.normalize();
         qref = qref * corr; // multiply quaternions from ref???????
 
@@ -109,10 +107,10 @@ void QuaternionMEKF::set_transition_matrix(Eigen::Ref<const Eigen::Matrix<float,
                            -delta_theta.transpose(), 0)
                               .finished();
 
-    F = std::cos(half * un) * Eigen::Matrix<float, 4, 4>::Identity() + std::sin(half * un) / un * Omega;
+    F = std::cos(0.5f * un) * Eigen::Matrix<float, 4, 4>::Identity() + std::sin(0.5f  * un) / un * Omega;
 }
 
-Matrix<float, 3, 3> QuaternionMEKF::skew_symmetric_matrix(const Eigen::Ref<const Eigen::Matrix<float, 3, 1>> &vec) const
+Eigen::Matrix<float, 3, 3> QuaternionMEKF::skew_symmetric_matrix(const Eigen::Ref<const Eigen::Matrix<float, 3, 1>> &vec) const
 {
     Eigen::Matrix<float, 3, 3> M;
     M << 0, -vec(2), vec(1),
@@ -122,20 +120,20 @@ Matrix<float, 3, 3> QuaternionMEKF::skew_symmetric_matrix(const Eigen::Ref<const
     return M;
 }
 
-Matrix<float, 3, 1> QuaternionMEKF::accelerometer_measurement_func() const
+Eigen::Matrix<float, 3, 1> QuaternionMEKF::accelerometer_measurement_func() const
 {
     return qref.inverse() * v1ref;
 }
 
-Matrix<float, 3, 1> QuaternionMEKF::magnetometer_measurement_func() const
+Eigen::Matrix<float, 3, 1> QuaternionMEKF::magnetometer_measurement_func() const
 {
     return qref.inverse() * v2ref;
 }
 
-Matrix<float, 6, 6> QuaternionMEKF<float, with_bias>::initialize_Q(Eigen::Matrix<float, 3, 1> sigma_g)
+Eigen::Matrix<float, 6, 6> QuaternionMEKF::initialize_Q(Eigen::Matrix<float, 3, 1> sigma_g)
 {
-    Eigen::Matrix<double, 6, 6> R =
-        (Eigen::Matrix<double, 6, 1>() << sigma_g.array().square().matrix(),
+    Eigen::Matrix<float, 6, 6> R =
+        (Eigen::Matrix<float, 6, 1>() << sigma_g.array().square().matrix(),
          1e-12,
          1e-12,
          1e-12)
@@ -168,7 +166,7 @@ void QuaternionMEKF::initialize_from_acc_mag(Eigen::Matrix<float, 3, 1> const &a
     v2ref = qref * mag;
 }
 
-QuaternionMEKF::Eigen::Matrix<float, 3, 1> QuaternionMEKF::gyroscope_bias() const
+Eigen::Matrix<float, 3, 1> QuaternionMEKF::gyroscope_bias() 
 {
     return x.tail(3);
 }

@@ -31,6 +31,9 @@ int main()
     {
         mekf.time_update(gyr, 0.1f);
         mekf.measurement_update(acc, mag);
+        quat = mekf.quaternion();
+        std::cout << "[" << quat[0] << ", " << quat[1] << ", " << quat[2] << ", " << quat[3] << "]" << std::endl;
+    
         // mekf.measurement_update_acc_only(acc);
     }
 
