@@ -10,7 +10,7 @@
 #include "rotation.h"
 
 #define NUM_STATES 9
-#define NUM_SENSOR_INPUTS 4
+#define NUM_SENSOR_INPUTS 6
 #define ALTITUDE_BUFFER_SIZE 10
 
 
@@ -36,7 +36,7 @@ public:
     void setState(KalmanState state) override;
     void compute_mass(FSMState fsm);
     void compute_kalman_gain();
-    void compute_gps_inputs(GPS &gps, FSMState fsm);
+    std::vector<float> compute_gps_inputs(GPS &gps, FSMState fsm);
     void reference_GPS(GPS &gps, FSMState fsm); 
 
     // void compute_drag_coeffs(float vel_magnitude_ms);

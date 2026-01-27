@@ -71,10 +71,12 @@ void EKF::initialize(RocketSystems *args)
 
     // set H
     H.setZero();
-    H(0, 0) = 1;
-    H(1, 2) = 1;
-    H(2, 5) = 1;
-    H(3, 8) = 1;
+    H(0, 0) = 1; // x
+    H(1, 3) = 1; // y
+    H(2, 6) = 1; // z
+    H(3, 2) = 1; // x accel
+    H(4, 5) = 1; // y accel
+    H(5, 8) = 1; // z accel
 
     P_k.setZero();
     P_k.block<3, 3>(0, 0) = Eigen::Matrix3f::Identity() * 1e-2f; // x block (pos,vel,acc)
@@ -83,9 +85,11 @@ void EKF::initialize(RocketSystems *args)
 
     // set Measurement Noise Matrix
     R(0, 0) = 1.9;
-    R(1, 1) = 1.9;
-    R(2, 2) = 1.9;
+    R(1, 1) = 0.1;
+    R(2, 2) = 0.1;
     R(3, 3) = 1.9;
+    R(4, 4) = 1.9;
+    R(5, 5) = 1.9;
 }
 
 /**
@@ -152,11 +156,15 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     }
 
     // acceloremeter reports values in g's and measures specific force
-    y_k(1, 0) = ((sensor_accel_global_g)(0)) * g_ms2;
-    y_k(2, 0) = ((sensor_accel_global_g)(1)) * g_ms2;
-    y_k(3, 0) = ((sensor_accel_global_g)(2)) * g_ms2;
+    y_k(3, 0) = ((sensor_accel_global_g)(0)) * g_ms2;
+    y_k(4, 0) = ((sensor_accel_global_g)(1)) * g_ms2;
+    y_k(5, 0) = ((sensor_accel_global_g)(2)) * g_ms2;
 
     y_k(0, 0) = barometer.altitude; // meters
+
+    std::vector<float> gps_data = compute_gps_inputs(gps, FSM_state); // testing GPS inputs
+    y_k(1, 0) = gps_data[0];                                          // meters
+    y_k(2, 0) = gps_data[1];                                          // meters
 
     // # Posteriori Update
     Eigen::Matrix<float, 9, 9> identity = Eigen::Matrix<float, 9, 9>::Identity();
@@ -203,13 +211,6 @@ void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration accelerati
         setQ(dt, sd);
         priori(dt, orientation, FSM_state);
         update(barometer, acceleration, orientation, FSM_state, gps);
-        // Eigen::Matrix<float,4,1> quat;
-        // eulerToQuaternion(orientation.roll,orientation.pitch,orientation.yaw,quat);
-
-        // std::cout << "Quaternion: w=" << quat(0,0)<< ", x=" << quat(1,0)
-        //           << ", y=" << quat(2,0)<< ", z=" <<quat(3,0)<< std::endl;
-
-        compute_gps_inputs(gps, FSM_state); // testing GPS inputs
     }
 }
 
@@ -310,24 +311,6 @@ void EKF::setF(float dt, float w_x, float w_y, float w_z, FSMState fsm, float v_
 }
 
 /**
- * @brief Computes the rockets mass throughout the flight.
- *
- * The following takes the fsm state of the rocket and uses the preconfigured rocket masses to calculate the mass over the rockets trajectory.
- * The code is configured so booster only goes through this interpolation once, whereas sustainer goes through it multiple time.
- * @param fsm: Takes the current FSM state of the rocket.
- * @todo Include the sustainer code, and include checks on the code to ensure mass does not become 0.
- */
-void EKF::compute_mass(FSMState fsm)
-{
-    if (fsm == FSMState::STATE_FIRST_BOOST)
-    {
-        curr_mass_kg = mass_full - (mass_full - mass_first_burnout) * stage_timestamp / 2.75;
-    }
-    /**
-     * @todo add the sustainer code.
-     */
-}
-/**
  * @brief Update Kalman Gain at aech timestep.
  *
  * After receiving new sensor data, the Kalman filter updates the the Kalman Gain.
@@ -335,19 +318,21 @@ void EKF::compute_mass(FSMState fsm)
  */
 void EKF::compute_kalman_gain()
 {
-    Eigen::Matrix<float, 4, 4> S_k = Eigen::Matrix<float, 4, 4>::Zero();
+    Eigen::Matrix<float, 6, 6> S_k = Eigen::Matrix<float, 6, 6>::Zero();
     S_k = (((H * P_priori * H.transpose()) + R)).inverse();
     K = (P_priori * H.transpose()) * S_k;
 }
 /**
  * @brief Update y and z at each timestep using GPS
  */
-void EKF::compute_gps_inputs(GPS &gps, FSMState fsm) {
+std::vector<float> EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
+{
     if (gps.latitude == 0 || gps.longitude == 0)
-        return;
-    
+        return std::vector<float>(0, 0);
+
     // Set up starting GPS
-    if (fsm == FSMState::STATE_IDLE) {
+    if (fsm == FSMState::STATE_IDLE)
+    {
         starting_gps = {gps.latitude / 1e7, gps.longitude / 1e7, gps.altitude};
         starting_ecef = gps_to_ecef(starting_gps[0], starting_gps[1], starting_gps[2]);
     }
@@ -361,8 +346,10 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm) {
     std::vector<float> curr_ecef = gps_to_ecef(curr_lat, curr_lon, curr_alt);
     std::vector<float> enu = ecef_to_enu(curr_ecef, starting_ecef, starting_gps);
 
-    x_k(3, 0) = enu[0]; // y = east
-    x_k(6, 0) = enu[1]; // z = north
+    // x_k(3, 0) = enu[0]; // y = east
+    // x_k(6, 0) = enu[1]; // z = north
+
+    return enu;
 }
 
 EKF ekf;
