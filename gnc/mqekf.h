@@ -15,39 +15,53 @@
 // Number of entries for aerodynamic data table
 #define AERO_DATA_SIZE (sizeof(aero_data) / sizeof(aero_data[0]))
 
-class EKF : public KalmanFilter<NUM_STATES, NUM_SENSOR_INPUTS>
+class QuaternionMEKF : public KalmanFilter<NUM_STATES, NUM_SENSOR_INPUTS>
 {
-public:
-    EKF();
-    void initialize(RocketSystems* args) override;
-    void priori(float dt, Orientation &orientation, FSMState fsm); 
-    void update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState state, GPS &gps) override;
+    public:
+        constexpr QuaternionMEKF(Vector3 const& sigma_a, Vector3 const& sigma_g, Vector3 const& sigma_m, T Pq0 = 1e-6, T Pb0 = 1e-1);
+        void initialize_from_acc_mag(Vector3 const& acc, Vector3 const& mag);
+        void initialize_from_acc(Vector3 const& acc);
+        static Quaternion<T> quaternion_from_acc(Vector3 const& acc);
+        void time_update(Vector3 const& gyr, T Ts);
+        void measurement_update(Vector3 const& acc, Vector3 const& mag);
+        void measurement_update_acc_only(Vector3 const& acc);
+        void measurement_update_mag_only(Vector3 const& mag);
+        Vector4 const& quaternion() const;
+        MatrixN const& covariance() const;
+        Vector3 gyroscope_bias() const;
 
-    void setQ(float dt, float sd);
-    void setF(float dt, float w_x, float w_y, float w_z, FSMState fsm, float v_x,float v_y, float v_z); 
+        
+    private:
+        Quaternion<T> qref;
 
-    KalmanData getState() override;
-    void setState(KalmanState state) override;
-    void compute_kalman_gain();
-   
-    void tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState state, GPS &gps);
-   
+        Vector3 v1ref;
+        Vector3 v2ref;
 
+        // State
+        Matrix<T, N, 1> x;
+        // State covariance
+        MatrixN P;
 
-private:
-    float s_dt = 0.05f;
-    float spectral_density_ = 13.0f;
-   
-    KalmanState kalman_state;
-    FSMState last_fsm = FSMState::STATE_IDLE;
-    float stage_timestamp = 0;
+        // Quaternion update matrix
+        Matrix4 F;
 
-    Eigen::Matrix<float, 3, 1> init_accel = Eigen::Matrix<float, 3, 1>::Zero();
-    Buffer<float, ALTITUDE_BUFFER_SIZE> alt_buffer;
-    KalmanData state;
+        // Constant matrices
+        const Matrix3 Racc, Rmag;
+        const MatrixM R;
+        const MatrixN Q;
+
+        void measurement_update_partial(const Eigen::Ref<const Vector3>& meas, const Eigen::Ref<const Vector3>& vhat, const Eigen::Ref<const Matrix3>& Rm);
+        void set_transition_matrix(const Eigen::Ref<const Vector3>& gyr, T Ts);
+        Matrix3 skew_symmetric_matrix(const Eigen::Ref<const Vector3>& vec) const;
+        Vector3 accelerometer_measurement_func() const;
+        Vector3 magnetometer_measurement_func() const;
+
+        static constexpr MatrixN initialize_Q(Vector3 sigma_g);
+ 
+
 };
 
 
 
-extern EKF ekf;
+extern QuaternionMEKF qmekf;
 
