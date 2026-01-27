@@ -15,8 +15,8 @@ public:
     void initialize_from_acc_mag(Eigen::Matrix<float, 3, 1> const &acc, Eigen::Matrix<float, 3, 1> const &mag);
     void time_update(Eigen::Matrix<float, 3, 1> const &gyr, float Ts);
     void measurement_update(Eigen::Matrix<float, 3, 1> const &acc, Eigen::Matrix<float, 3, 1> const &mag);
-    Eigen::Matrix<float, 4, 1> const &quaternion() const;
-    Eigen::Matrix<float, 6, 6> const &covariance() const;
+    Eigen::Matrix<float, 4, 1> quaternion();
+    Eigen::Matrix<float, 6, 6> covariance();
     Eigen::Matrix<float, 3, 1> gyroscope_bias();
     
 

@@ -24,8 +24,12 @@ void QuaternionMEKF::time_update(Eigen::Matrix<float, 3, 1> const &gyr, float Ts
 {
     set_transition_matrix(gyr - x.tail(3), Ts);
 
-    // Quaternionf.coeffs() get the components in [x,y,z,w] order
-    qref = F * qref.coeffs();
+    Eigen::Vector4f q; //necessary to reorder to w,x,y,z
+    q << qref.w(), qref.x(), qref.y(), qref.z();
+
+    q = F * q;
+
+    qref = Eigen::Quaternionf(q(0), q(1), q(2), q(3));
     qref.normalize();
 
     Eigen::Matrix<float, 6, 6> F_a;
@@ -91,7 +95,7 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
 }
 
 
-Eigen::Matrix<float, 4, 1> const &QuaternionMEKF::quaternion() const
+Eigen::Matrix<float, 4, 1> QuaternionMEKF::quaternion() 
 {
     return qref.coeffs();
 }
