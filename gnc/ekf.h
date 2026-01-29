@@ -70,6 +70,12 @@ private:
     Eigen::Matrix<float, 3, 1> init_accel = Eigen::Matrix<float, 3, 1>::Zero();
     Buffer<float, ALTITUDE_BUFFER_SIZE> alt_buffer;
     KalmanData state;
+    
+    // GPS reference coordinates
+    float gps_latitude_original = 0.0f;
+    float gps_longitude_original = 0.0f;
+    float gps_latitude_last = 0.0f;
+    float gps_longitude_last = 0.0f;
 };
 
 
