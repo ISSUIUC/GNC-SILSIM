@@ -16,10 +16,10 @@ def quat_to_rotmat(q):
 
 
 
-df = pd.read_csv('GNC-SILSIM\plotter\mqekf_quaternion_output.csv')  
+df = pd.read_csv(r'../gnc/mqekf_quaternion_output.csv')  
 
 # Convert to NumPy array
-quats = df[['w', 'x', 'y', 'z']].to_numpy()  # pull quaternion rows
+quats = df[['quaternion_w', 'quaternion_x', 'quaternion_y', 'quaternion_z']].to_numpy()  # pull quaternion rows
 
 
 fig = plt.figure()
@@ -55,5 +55,5 @@ def update(i):
 
     return lines
 
-ani = FuncAnimation(fig, update, frames=len(quats), interval=20)
+ani = FuncAnimation(fig, update, frames=len(quats), interval=5)
 plt.show()
