@@ -169,6 +169,33 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     x_k = x_priori + K_baro * innovation;
     P_k = (identity - K_baro * H_baro) * P_priori;
 
+    // Only reset velocities if we've been in LANDED state for at least 0.5 seconds
+    // This prevents jitter from brief false LANDED state transitions
+    bool is_landed = (FSM_state == FSMState::STATE_LANDED);
+    if (is_landed)
+    {
+        if (was_landed_last)
+        {
+            landed_state_duration += s_dt;  // Accumulate time in LANDED state
+        }
+        else
+        {
+            landed_state_duration = s_dt;  // Reset timer
+        }
+        
+        // Only reset velocities if we've been landed for at least 0.5 seconds
+        if (landed_state_duration >= 1.0f)
+        {
+            x_k(3, 0) = 0.0f;  // velocity y (vy) = 0 when landed
+            x_k(5, 0) = 0.0f;  // velocity z (vz) = 0 when landed
+        }
+    }
+    else
+    {
+        landed_state_duration = 0.0f;  // Reset timer when not landed
+    }
+    was_landed_last = is_landed;
+
     // Update state structure
     kalman_state.state_est_pos_x = x_k(0, 0);
     kalman_state.state_est_vel_x = x_k(1, 0);
@@ -204,6 +231,12 @@ void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration accelerati
         {
             stage_timestamp = 0;
             last_fsm = FSM_state;
+            // Reset landed state tracking when FSM changes
+            if (FSM_state != FSMState::STATE_LANDED)
+            {
+                landed_state_duration = 0.0f;
+                was_landed_last = false;
+            }
         }
         stage_timestamp += dt;
         s_dt = dt;  // Store dt for use in update
@@ -428,9 +461,10 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     y_gps(1, 0) = north;  // z position (north)
     
     // GPS measurement noise (high trust = low noise)
+    // Reduced noise values to increase trust in GPS position measurements
     Eigen::Matrix<float, 2, 2> R_gps = Eigen::Matrix<float, 2, 2>::Zero();
-    R_gps(0, 0) = 0.1f;  // Very low noise - high trust in GPS
-    R_gps(1, 1) = 0.1f;  // Very low noise - high trust in GPS
+    R_gps(0, 0) = 0.1f;  // Very low noise - very high trust in GPS y position (east)
+    R_gps(1, 1) = 0.1f;  // Very low noise - very high trust in GPS z position (north)
     
     // Innovation
     Eigen::Matrix<float, 2, 1> innovation_gps = y_gps - H_gps * x_k;
@@ -446,10 +480,34 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     Eigen::Matrix<float, NUM_STATES, NUM_STATES> identity = Eigen::Matrix<float, NUM_STATES, NUM_STATES>::Identity();
     P_k = (identity - K_gps * H_gps) * P_k;
     
-
-    if (x_k(5, 0) < 0)  // velocity z (vz)
+    // Only reset velocities if we've been in LANDED state for at least 0.5 seconds
+    // This prevents jitter from brief false LANDED state transitions
+    bool is_landed = (fsm == FSMState::STATE_LANDED);
+    if (is_landed)
     {
-        x_k(5, 0) = -x_k(5, 0);  // Negate negative velocity z to make it positive
+        if (was_landed_last)
+        {
+            landed_state_duration += s_dt;  // Accumulate time in LANDED state
+        }
+        else
+        {
+            landed_state_duration = s_dt;  // Reset timer
+        }
+        
+        // Only reset velocities if we've been landed for at least 0.5 seconds
+        if (landed_state_duration >= 0.5f)
+        {
+            x_k(3, 0) = 0.0f;  // velocity y (vy) = 0 when landed
+            x_k(5, 0) = 0.0f;  // velocity z (vz) = 0 when landed
+        }
+    }
+    else
+    {
+        // Negate velocity z if it's negative (so negative becomes positive)
+        if (x_k(5, 0) < 0)  // velocity z (vz)
+        {
+            x_k(5, 0) = -x_k(5, 0);  // Negate negative velocity z to make it positive
+        }
     }
     
     // Update last GPS coordinates

@@ -68,6 +68,10 @@ private:
     KalmanState kalman_state;
     FSMState last_fsm = FSMState::STATE_IDLE;
     float stage_timestamp = 0;
+    
+    // Track how long we've been in LANDED state to avoid false positives
+    float landed_state_duration = 0.0f;
+    bool was_landed_last = false;
 
     Eigen::Matrix<float, 3, 1> init_accel = Eigen::Matrix<float, 3, 1>::Zero();
     Buffer<float, ALTITUDE_BUFFER_SIZE> alt_buffer;
