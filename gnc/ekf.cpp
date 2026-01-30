@@ -446,6 +446,12 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     Eigen::Matrix<float, NUM_STATES, NUM_STATES> identity = Eigen::Matrix<float, NUM_STATES, NUM_STATES>::Identity();
     P_k = (identity - K_gps * H_gps) * P_k;
     
+
+    if (x_k(5, 0) < 0)  // velocity z (vz)
+    {
+        x_k(5, 0) = -x_k(5, 0);  // Negate negative velocity z to make it positive
+    }
+    
     // Update last GPS coordinates
     gps_latitude_last = lat;
     gps_longitude_last = lon;
