@@ -444,36 +444,43 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     float north = -std::sin(gps_latitude_original_rad) * std::cos(gps_longitude_original_rad) * dx - std::sin(gps_latitude_original_rad) * std::sin(gps_longitude_original_rad) * dy + std::cos(gps_latitude_original_rad) * dz;
     // float up = std::cos(gps_latitude_original_rad) * std::cos(gps_longitude_original_rad) * dx + std::cos(gps_latitude_original_rad) * std::sin(gps_longitude_original_rad) * dy + std::sin(gps_latitude_original_rad) * dz;  // Not used
 
+    // GPS altitude as x position measurement (relative to reference altitude)
+    // The reference was initialized at altitude 0, so GPS altitude directly gives x position
+    float gps_x_position = alt;
+
     // PROPER GPS MEASUREMENT UPDATE (not direct state overwrite)
-    // GPS measures y position (east) and z position (north)
+    // GPS measures x position (altitude), y position (east), and z position (north)
     // State: [x, vx, y, vy, z, vz]
-    // GPS measures: y (east) and z (north) positions
+    // GPS measures: x (altitude), y (east), and z (north) positions
     
-    // Measurement matrix for GPS: H_gps = [0 0 1 0 0 0; 0 0 0 0 1 0]
-    // Measures y position (index 2) and z position (index 4)
-    Eigen::Matrix<float, 2, NUM_STATES> H_gps = Eigen::Matrix<float, 2, NUM_STATES>::Zero();
-    H_gps(0, 2) = 1.0f;  // GPS measures y position (east)
-    H_gps(1, 4) = 1.0f;  // GPS measures z position (north)
+    // Measurement matrix for GPS: H_gps = [1 0 0 0 0 0; 0 0 1 0 0 0; 0 0 0 0 1 0]
+    // Measures x position (index 0), y position (index 2), and z position (index 4)
+    Eigen::Matrix<float, 3, NUM_STATES> H_gps = Eigen::Matrix<float, 3, NUM_STATES>::Zero();
+    H_gps(0, 0) = 1.0f;  // GPS measures x position (altitude)
+    H_gps(1, 2) = 1.0f;  // GPS measures y position (east)
+    H_gps(2, 4) = 1.0f;  // GPS measures z position (north)
     
     // GPS measurements
-    Eigen::Matrix<float, 2, 1> y_gps;
-    y_gps(0, 0) = east;   // y position (east)
-    y_gps(1, 0) = north;  // z position (north)
+    Eigen::Matrix<float, 3, 1> y_gps;
+    y_gps(0) = gps_x_position;  // x position (altitude)
+    y_gps(1) = east;            // y position (east)
+    y_gps(2) = north;           // z position (north)
     
     // GPS measurement noise (high trust = low noise)
     // Reduced noise values to increase trust in GPS position measurements
-    Eigen::Matrix<float, 2, 2> R_gps = Eigen::Matrix<float, 2, 2>::Zero();
-    R_gps(0, 0) = 0.1f;  // Very low noise - very high trust in GPS y position (east)
-    R_gps(1, 1) = 0.1f;  // Very low noise - very high trust in GPS z position (north)
+    Eigen::Matrix<float, 3, 3> R_gps = Eigen::Matrix<float, 3, 3>::Zero();
+    R_gps(0, 0) = 5.0f;  // Very low noise - very high trust in GPS x position (altitude)
+    R_gps(1, 1) = 0.01f;  // Very low noise - very high trust in GPS y position (east)
+    R_gps(2, 2) = 0.01f;  // Very low noise - very high trust in GPS z position (north)
     
     // Innovation
-    Eigen::Matrix<float, 2, 1> innovation_gps = y_gps - H_gps * x_k;
+    Eigen::Matrix<float, 3, 1> innovation_gps = y_gps - H_gps * x_k;
     
     // Innovation covariance
-    Eigen::Matrix<float, 2, 2> S_gps = H_gps * P_k * H_gps.transpose() + R_gps;
+    Eigen::Matrix<float, 3, 3> S_gps = H_gps * P_k * H_gps.transpose() + R_gps;
     
     // Kalman gain for GPS
-    Eigen::Matrix<float, NUM_STATES, 2> K_gps = P_k * H_gps.transpose() * S_gps.inverse();
+    Eigen::Matrix<float, NUM_STATES, 3> K_gps = P_k * H_gps.transpose() * S_gps.inverse();
     
     // Update state and covariance
     x_k = x_k + K_gps * innovation_gps;
