@@ -423,11 +423,11 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     float lon = gps.longitude / 1e7;
     float alt = gps.altitude;
     
-    // Skip if GPS hasn't changed significantly (avoid redundant updates)
-    if (abs(lat - gps_latitude_last) <= 1e-5 && abs(lon - gps_longitude_last) <= 1e-5)
-    {
-        return;
-    }
+    // // Skip if GPS hasn't changed significantly (avoid redundant updates)
+    // if (abs(lat - gps_latitude_last) <= 1e-5 && abs(lon - gps_longitude_last) <= 1e-5)
+    // {
+    //     return;
+    // }
 
     // Convert GPS to ECEF
     std::vector<float> rocket_cords = gps_to_ecef(lat, lon, alt);
