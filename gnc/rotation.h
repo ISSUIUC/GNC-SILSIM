@@ -19,28 +19,24 @@ template <typename Angles>
 void BodyToGlobal(Angles &angles_rad, Eigen::Matrix<float, 3, 1> &body_vec)
 {
     Eigen::Matrix3f roll, pitch, yaw;
-    roll << cos(angles_rad.roll), -sin(angles_rad.roll), 0.,
-        sin(angles_rad.roll), cos(angles_rad.roll), 0.,
-        0., 0., 1.;
+    roll << 1., 0., 0., 
+            0., cos(angles_rad.roll), -sin(angles_rad.roll), 
+            0., sin(angles_rad.roll), cos(angles_rad.roll);
 
     pitch << cos(angles_rad.pitch), 0., sin(angles_rad.pitch),
-        0., 1., 0.,
-        -sin(angles_rad.pitch), 0., cos(angles_rad.pitch);
+            0., 1., 0.,
+            -sin(angles_rad.pitch), 0., cos(angles_rad.pitch);
 
-    yaw << 1., 0., 0.,
-        0., cos(angles_rad.yaw), -sin(angles_rad.yaw),
-        0., sin(angles_rad.yaw), cos(angles_rad.yaw);
+    yaw << cos(angles_rad.yaw), -sin(angles_rad.yaw), 0.,
+            sin(angles_rad.yaw), cos(angles_rad.yaw), 0.,
+            0., 0., 1.;
 
     Eigen::Matrix3f rotation_matrix = yaw * pitch * roll;
+    // temp = body_vec expressed in global frame (rotation_matrix * body_vec)
     Eigen::Vector3f temp = rotation_matrix * body_vec;
-
-    // Convert from Z-up convention to X-up convention
-    // Eigen::Vector3f corrected;
-    // corrected(0) = temp(2);  // Z → X
-    // corrected(1) = temp(1);  // X → Y
-    // corrected(2) = temp(0);  // Y → Z
-
-    // body_vec = corrected;
+    body_vec(0, 0) = temp(0);  
+    body_vec(1, 0) = temp(1); 
+    body_vec(2, 0) = temp(2);  
 }
 
 /**

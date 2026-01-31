@@ -10,7 +10,7 @@
 #include "rotation.h"
 
 #define NUM_STATES 6  // [x, vx, y, vy, z, vz] - position and velocity only
-#define NUM_SENSOR_INPUTS 4  // barometer, accel_x, accel_y, accel_z
+#define NUM_SENSOR_INPUTS 4  // barometer, gps_x, gps_y, gps_z
 #define NUM_CONTROL_INPUTS 3  // acceleration as control input [ax, ay, az]
 #define ALTITUDE_BUFFER_SIZE 10
 
@@ -24,7 +24,7 @@ public:
     EKF();
     void initialize(RocketSystems* args) override;
     // void priori();
-    void priori(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, NUM_CONTROL_INPUTS, 1> &u_control); 
+    void priori(float dt, Orientation &orientation, FSMState fsm, Acceleration acceleration); 
     void update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState state, GPS &gps) override;
 
     void setQ(float dt, float sd);
@@ -47,6 +47,9 @@ public:
     // void getThrust(float timestamp, const euler_t& angles, FSMState FSM_state, Eigen::Vector3f& thrust_out);
 
     void tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState state, GPS &gps);
+
+    /** Print the final posterior covariance matrix P_k to stdout (state order: x, vx, y, vy, z, vz). */
+    void printCovariance() const;
    
     bool should_reinit = false;
     float current_vel = 0.0f;
@@ -79,6 +82,9 @@ private:
     
     // Control input matrix for acceleration [ax, ay, az]
     Eigen::Matrix<float, NUM_STATES, NUM_CONTROL_INPUTS> B_control;
+    
+    // Last computed control input (acceleration) - filled by priori(), used by update() for state output
+    Eigen::Matrix<float, NUM_CONTROL_INPUTS, 1> u_control_last_;
     
     // GPS reference coordinates
     float gps_latitude_original = 0.0f;

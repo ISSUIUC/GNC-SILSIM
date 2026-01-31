@@ -1,6 +1,7 @@
 #include "ekf.h"
 #include "fsm_states.h" // for sim
 #include <iostream>
+#include <iomanip>
 
 /**
  * The following program is the University of Illinois' Extended Kalman Filter, utilized for state estimation of
@@ -17,12 +18,6 @@ EKF::EKF() : KalmanFilter()
 {
     state = KalmanData();
 }
-
-// /**
-//  * THIS IS A PLACEHOLDER FUNCTION SO WE CAN ABSTRACT FROM `kalman_filter.h`
-//  */
-// void EKF::priori() {};
-
 /**
  * @brief Sets altitude by averaging 30 barometer measurements taken 100 ms
  * apart
@@ -70,17 +65,20 @@ void EKF::initialize(RocketSystems *args)
     // H(3,:) measures acceleration z (but we'll use it as control input, not measurement)
     H.setZero();
     H(0, 0) = 1;  // barometer measures x position (altitude)
+    H(1, 0) = 1;  // GPS measures x position (altitude)
+    H(2, 2) = 1;  // GPS measures y position (east)
+    H(3, 4) = 1;  // GPS measures z position (north)
 
     P_k.setZero();
     P_k.block<2, 2>(0, 0) = Eigen::Matrix2f::Identity() * 1e-2f; // x block (pos,vel)
     P_k.block<2, 2>(2, 2) = Eigen::Matrix2f::Identity() * 1e-2f; // y block (pos,vel)
     P_k.block<2, 2>(4, 4) = Eigen::Matrix2f::Identity() * 1e-2f; // z block (pos,vel)
 
-    // set Measurement Noise Matrix
-    R(0, 0) = 1.9;  // barometer noise
-    R(1, 1) = 1.9;  // accel x (not used as measurement, but keep for compatibility)
-    R(2, 2) = 1.9;  // accel y (not used as measurement, but keep for compatibility)
-    R(3, 3) = 1.9;  // accel z (not used as measurement, but keep for compatibility)
+    // set Measurement Noise Matrix (variance in m²; std dev = sqrt(R) in m)
+    R(0, 0) = 0.01f;  // barometer: ~1.5 m typical error
+    R(1, 1) = 9.0f;   // GPS altitude: ~3 m (vertical usually worse than horizontal)
+    R(2, 2) = 4.0f;  // GPS east: ~2 m horizontal
+    R(3, 3) = 4.0f;  // GPS north: ~2 m horizontal
 }
 
 /**
@@ -91,15 +89,26 @@ void EKF::initialize(RocketSystems *args)
  * it extrapolates the state at time n+1 based on the state at time n.
  */
 
-void EKF::priori(float dt, Orientation &/*orientation*/, FSMState fsm, Eigen::Matrix<float, NUM_CONTROL_INPUTS, 1> &u_control)
+void EKF::priori(float dt, Orientation &orientation, FSMState fsm, Acceleration acceleration)
 {
     // CRITICAL FIX: Update F matrix BEFORE using it for both state and covariance
     setF(dt, 0, 0, 0, fsm, 0, 0, 0);
     setB(dt);
     
+    // Compute control input (acceleration) once here - used for propagation and stored for update() output
+    Eigen::Matrix<float, 3, 1> sensor_accel_global_g = Eigen::Matrix<float, 3, 1>::Zero();
+    sensor_accel_global_g(0, 0) = acceleration.ax + 0.045f;
+    sensor_accel_global_g(1, 0) = acceleration.ay - 0.065f;
+    sensor_accel_global_g(2, 0) = acceleration.az - 0.06f;
+    // euler_t angles_rad = orientation.getEuler();
+    // BodyToGlobal(angles_rad, sensor_accel_global_g);
+    float g_ms2 = (fsm > FSMState::STATE_IDLE) ? gravity_ms2 : 0.0f;
+    u_control_last_(0, 0) = sensor_accel_global_g(0, 0) * g_ms2;
+    u_control_last_(1, 0) = sensor_accel_global_g(1, 0) * g_ms2;
+    u_control_last_(2, 0) = sensor_accel_global_g(2, 0) * g_ms2;
+    
     // State propagation: x_priori = F * x_k + B * u
-    // u is acceleration control input [ax, ay, az]
-    x_priori = F_mat * x_k + B_control * u_control;
+    x_priori = F_mat * x_k + B_control * u_control_last_;
     P_priori = (F_mat * P_k * F_mat.transpose()) + Q;
 }
 
@@ -110,7 +119,7 @@ void EKF::priori(float dt, Orientation &/*orientation*/, FSMState fsm, Eigen::Ma
  * After updating the gain, the state estimate is updated.
  *
  */
-void EKF::update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState FSM_state, GPS &/*gps*/)
+void EKF::update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState FSM_state, GPS &gps)
 {
     // if on pad -> take last 10 barometer measurements for init state
     if (FSM_state == FSMState::STATE_IDLE)
@@ -126,34 +135,6 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
         setState(kalman_state);
     }
 
-    // Convert accelerometer to global frame for control input
-    Eigen::Matrix<float, 3, 1> sensor_accel_global_g = Eigen::Matrix<float, 3, 1>(Eigen::Matrix<float, 3, 1>::Zero());
-
-    // Accounting for sensor bias and coordinate frame transforms
-    (sensor_accel_global_g)(0, 0) = acceleration.ax + 0.045;
-    (sensor_accel_global_g)(1, 0) = acceleration.ay - 0.065;
-    (sensor_accel_global_g)(2, 0) = acceleration.az - 0.06;
-
-    euler_t angles_rad = orientation.getEuler();
-    BodyToGlobal(angles_rad, sensor_accel_global_g);
-
-    float g_ms2;
-    if ((FSM_state > FSMState::STATE_IDLE))
-    {
-        g_ms2 = gravity_ms2;
-    }
-    else
-    {
-        g_ms2 = 0;
-    }
-
-    // Convert to m/s^2 (accelerometer measures specific force)
-    // Control input: acceleration in global frame
-    Eigen::Matrix<float, NUM_CONTROL_INPUTS, 1> u_control;
-    u_control(0, 0) = ((sensor_accel_global_g)(0)) * g_ms2;  // ax in m/s^2
-    u_control(1, 0) = ((sensor_accel_global_g)(1)) * g_ms2;  // ay in m/s^2
-    u_control(2, 0) = ((sensor_accel_global_g)(2)) * g_ms2;  // az in m/s^2
-
     // Barometer measurement
     y_k(0, 0) = barometer.altitude; // meters (measures x position/altitude)
 
@@ -168,6 +149,9 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     float innovation = y_k(0, 0) - (H_baro * x_priori)(0, 0);
     x_k = x_priori + K_baro * innovation;
     P_k = (identity - K_baro * H_baro) * P_priori;
+
+    // GPS measurement update (integrates lat/long/alt as measurements)
+    compute_gps_inputs(gps, FSM_state);
 
     // Only reset velocities if we've been in LANDED state for at least 0.5 seconds
     // This prevents jitter from brief false LANDED state transitions
@@ -199,13 +183,13 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     // Update state structure
     kalman_state.state_est_pos_x = x_k(0, 0);
     kalman_state.state_est_vel_x = x_k(1, 0);
-    kalman_state.state_est_accel_x = u_control(0, 0);  // Current acceleration (not state)
+    kalman_state.state_est_accel_x = u_control_last_(0, 0);  // From priori()
     kalman_state.state_est_pos_y = x_k(2, 0);
     kalman_state.state_est_vel_y = x_k(3, 0);
-    kalman_state.state_est_accel_y = u_control(1, 0);  // Current acceleration (not state)
+    kalman_state.state_est_accel_y = u_control_last_(1, 0);  // From priori()
     kalman_state.state_est_pos_z = x_k(4, 0);
     kalman_state.state_est_vel_z = x_k(5, 0);
-    kalman_state.state_est_accel_z = u_control(2, 0);  // Current acceleration (not state)
+    kalman_state.state_est_accel_z = u_control_last_(2, 0);  // From priori()
 
     state.position = (Position){kalman_state.state_est_pos_x, kalman_state.state_est_pos_y, kalman_state.state_est_pos_z};
     state.velocity = (Velocity){kalman_state.state_est_vel_x, kalman_state.state_est_vel_y, kalman_state.state_est_vel_z};
@@ -241,24 +225,9 @@ void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration accelerati
         stage_timestamp += dt;
         s_dt = dt;  // Store dt for use in update
         
-        // Prepare control input (acceleration) for priori step
-        Eigen::Matrix<float, 3, 1> sensor_accel_global_g = Eigen::Matrix<float, 3, 1>(Eigen::Matrix<float, 3, 1>::Zero());
-        (sensor_accel_global_g)(0, 0) = acceleration.ax + 0.045;
-        (sensor_accel_global_g)(1, 0) = acceleration.ay - 0.065;
-        (sensor_accel_global_g)(2, 0) = acceleration.az - 0.06;
-        euler_t angles_rad = orientation.getEuler();
-        BodyToGlobal(angles_rad, sensor_accel_global_g);
-        float g_ms2 = (FSM_state > FSMState::STATE_IDLE) ? gravity_ms2 : 0.0f;
-        Eigen::Matrix<float, NUM_CONTROL_INPUTS, 1> u_control;
-        u_control(0, 0) = ((sensor_accel_global_g)(0)) * g_ms2;
-        u_control(1, 0) = ((sensor_accel_global_g)(1)) * g_ms2;
-        u_control(2, 0) = ((sensor_accel_global_g)(2)) * g_ms2;
-        
         setQ(dt, sd);
-        priori(dt, orientation, FSM_state, u_control);
+        priori(dt, orientation, FSM_state, acceleration);
         update(barometer, acceleration, orientation, FSM_state, gps);
-        // GPS update is now handled properly as measurement update
-        compute_gps_inputs(gps, FSM_state); // GPS measurement update
     }
 }
 
@@ -299,33 +268,59 @@ void EKF::setState(KalmanState state)
  * The Q matrix is the covariance matrix for the process noise and is
  * updated based on the time taken per cycle of the Kalman Filter Thread.
  */
-void EKF::
-    setQ(float dt, float sd)
+void EKF::setQ(float dt, float sd)
 {
     // Q matrix for 6 states: [x, vx, y, vy, z, vz]
     // Process noise for position-velocity model (Singer model)
+    float sigma_a = 0.2f; // m/s^2, tune based on IMU + drag + unmodeled
     Q.setZero();
-    
-    // X axis block (position, velocity)
-    Q(0, 0) = pow(dt, 5) / 20;  // position-position
-    Q(0, 1) = pow(dt, 4) / 8;   // position-velocity
-    Q(1, 1) = pow(dt, 3) / 3;   // velocity-velocity
-    Q(1, 0) = Q(0, 1);
-    
-    // Y axis block (position, velocity)
-    Q(2, 2) = pow(dt, 5) / 20;
-    Q(2, 3) = pow(dt, 4) / 8;
-    Q(3, 3) = pow(dt, 3) / 3;
-    Q(3, 2) = Q(2, 3);
-    
-    // Z axis block (position, velocity)
-    Q(4, 4) = pow(dt, 5) / 20;
-    Q(4, 5) = pow(dt, 4) / 8;
-    Q(5, 5) = pow(dt, 3) / 3;
-    Q(5, 4) = Q(4, 5);
 
-    Q *= sd;
+    // X axis
+    Q(0,0) = pow(dt,4)/4.0f * sigma_a*sigma_a;
+    Q(0,1) = pow(dt,3)/2.0f * sigma_a*sigma_a;
+    Q(1,0) = Q(0,1);
+    Q(1,1) = pow(dt,2) * sigma_a*sigma_a;
+
+    // Y axis
+    Q(2,2) = pow(dt,4)/4.0f * sigma_a*sigma_a;
+    Q(2,3) = pow(dt,3)/2.0f * sigma_a*sigma_a;
+    Q(3,2) = Q(2,3);
+    Q(3,3) = pow(dt,2) * sigma_a*sigma_a;
+
+    // Z axis
+    Q(4,4) = pow(dt,4)/4.0f * sigma_a*sigma_a;
+    Q(4,5) = pow(dt,3)/2.0f * sigma_a*sigma_a;
+    Q(5,4) = Q(4,5);
+    Q(5,5) = pow(dt,2) * sigma_a*sigma_a;
 }
+
+// void EKF::setQ(float dt, float sd)
+// {
+//     // Q matrix for 6 states: [x, vx, y, vy, z, vz]
+//     // Process noise for position-velocity model (Singer model)
+//     Q.setZero();
+    
+//     // X axis block (position, velocity)
+//     Q(0, 0) = pow(dt, 5) / 20;  // position-position
+//     Q(0, 1) = pow(dt, 4) / 8;   // position-velocity
+//     Q(1, 1) = pow(dt, 3) / 3;   // velocity-velocity
+//     Q(1, 0) = Q(0, 1);
+    
+//     // Y axis block (position, velocity)
+//     Q(2, 2) = pow(dt, 5) / 20;
+//     Q(2, 3) = pow(dt, 4) / 8;
+//     Q(3, 3) = pow(dt, 3) / 3;
+//     Q(3, 2) = Q(2, 3);
+    
+//     // Z axis block (position, velocity)
+//     Q(4, 4) = pow(dt, 5) / 20;
+//     Q(4, 5) = pow(dt, 4) / 8;
+//     Q(5, 5) = pow(dt, 3) / 3;
+//     Q(5, 4) = Q(4, 5);
+
+//     Q *= sd;
+// }
+
 
 /**
  * @brief Sets the F matrix given time step.
@@ -362,12 +357,15 @@ void EKF::setB(float dt)
     B_control.setZero();
     
     // X axis: velocity change = acceleration * dt
+    B_control(0, 0) = 0.5f * dt * dt;
     B_control(1, 0) = dt;  // vx += ax * dt
     
     // Y axis: velocity change = acceleration * dt
+    B_control(2, 1) = 0.5f * dt * dt;
     B_control(3, 1) = dt;  // vy += ay * dt
     
     // Z axis: velocity change = acceleration * dt
+    B_control(4, 2) = 0.5f * dt * dt;
     B_control(5, 2) = dt;  // vz += az * dt
 }
 
@@ -453,12 +451,14 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     // State: [x, vx, y, vy, z, vz]
     // GPS measures: x (altitude), y (east), and z (north) positions
     
-    // Measurement matrix for GPS: H_gps = [1 0 0 0 0 0; 0 0 1 0 0 0; 0 0 0 0 1 0]
-    // Measures x position (index 0), y position (index 2), and z position (index 4)
-    Eigen::Matrix<float, 3, NUM_STATES> H_gps = Eigen::Matrix<float, 3, NUM_STATES>::Zero();
-    H_gps(0, 0) = 1.0f;  // GPS measures x position (altitude)
-    H_gps(1, 2) = 1.0f;  // GPS measures y position (east)
-    H_gps(2, 4) = 1.0f;  // GPS measures z position (north)
+    // Set GPS measurement matrix using main H matrix (rows 1-3)
+    // H(1,0) = GPS measures x position (altitude)
+    // H(2,2) = GPS measures y position (east)
+    // H(3,4) = GPS measures z position (north)
+    
+    
+    // Extract GPS measurement matrix from main H matrix
+    Eigen::Matrix<float, 3, NUM_STATES> H_gps = H.block<3, NUM_STATES>(1, 0);
     
     // GPS measurements
     Eigen::Matrix<float, 3, 1> y_gps;
@@ -466,12 +466,8 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
     y_gps(1) = east;            // y position (east)
     y_gps(2) = north;           // z position (north)
     
-    // GPS measurement noise (high trust = low noise)
-    // Reduced noise values to increase trust in GPS position measurements
-    Eigen::Matrix<float, 3, 3> R_gps = Eigen::Matrix<float, 3, 3>::Zero();
-    R_gps(0, 0) = 5.0f;  // Very low noise - very high trust in GPS x position (altitude)
-    R_gps(1, 1) = 0.01f;  // Very low noise - very high trust in GPS y position (east)
-    R_gps(2, 2) = 0.01f;  // Very low noise - very high trust in GPS z position (north)
+    // Use combined R matrix (rows/cols 1-3 for GPS measurements)
+    Eigen::Matrix<float, 3, 3> R_gps = R.block<3, 3>(1, 1);
     
     // Innovation
     Eigen::Matrix<float, 3, 1> innovation_gps = y_gps - H_gps * x_k;
@@ -547,6 +543,25 @@ void EKF::reference_GPS(GPS &gps, FSMState fsm)
         gps_latitude_last = gps_latitude_original;
         gps_longitude_last = gps_longitude_original;
     }
+}
+
+void EKF::printCovariance() const
+{
+    const char* labels[] = {"x", "vx", "y", "vy", "z", "vz"};
+    std::cout << "\n--- Final covariance matrix P_k (state: x, vx, y, vy, z, vz) ---" << std::endl;
+    std::cout << std::fixed << std::setprecision(6);
+    std::cout << "       ";
+    for (int c = 0; c < NUM_STATES; c++)
+        std::cout << std::setw(12) << labels[c];
+    std::cout << std::endl;
+    for (int r = 0; r < NUM_STATES; r++)
+    {
+        std::cout << std::setw(6) << labels[r] << " ";
+        for (int c = 0; c < NUM_STATES; c++)
+            std::cout << std::setw(12) << P_k(r, c);
+        std::cout << std::endl;
+    }
+    std::cout << "---" << std::endl;
 }
 
 EKF ekf;
