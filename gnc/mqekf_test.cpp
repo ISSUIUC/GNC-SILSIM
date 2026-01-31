@@ -7,23 +7,23 @@ using namespace Eigen;
 
 int main()
 {
-    Eigen::Matrix<float, 3, 1> sigma_a = {20.78e-3, 20.78e-3, 20.78e-3}; // look into these values...
-    Eigen::Matrix<float, 3, 1> sigma_g = {0.2020 * M_PI / 180, 0.2020 * M_PI / 180, 0.2020 * M_PI / 180};
-    Eigen::Matrix<float, 3, 1> sigma_m = {3.2e-3, 3.2e-3, 4.1e-3};
+    Eigen::Matrix<float, 3, 1> sigma_a = {150e-6 * 9.81 * sqrt(200.0f), 150e-6 * 9.81 * sqrt(200.0f),150e-6 * 9.81 * sqrt(200.0f)}; // 150e-6 g * root(Hz) * 9.81 m/s^2
+    Eigen::Matrix<float, 3, 1> sigma_g = {0.1 * M_PI / 180, 0.1 * M_PI / 180, 0.1* M_PI / 180}; // 0.1 deg/s
+    Eigen::Matrix<float, 3, 1> sigma_m = {0.0004 , 0.0004 , 0.0004 }; // 0.4 mGauss
 
     QuaternionMEKF mekf(sigma_a, sigma_g, sigma_m);
 
     Eigen::Matrix<float, 3, 1> acc0 = {-9.81, 0, 0}; // Factored in
-    Eigen::Matrix<float, 3, 1> mag0 = {0.4, 0, 0.2}; //
+    Eigen::Matrix<float, 3, 1> mag0 = {0.4, 0, 0.2}; // Factored in ??
 
     mekf.initialize_from_acc_mag(acc0, mag0);
     Eigen::Matrix<float, 4, 1> quat = mekf.quaternion();
 
     std::cout << "[" << quat[0] << ", " << quat[1] << ", " << quat[2] << ", " << quat[3] << "]," << std::endl;
 
-    Eigen::Matrix<float, 3, 1> gyr = {0.05, 0, 0}; // these values never change in this test rad/s  
+    Eigen::Matrix<float, 3, 1> gyr = {0.1, 0, 0}; // these values never change in this test rad/s  
     Eigen::Matrix<float, 3, 1> acc = {-9.8, 0, 0};  // these values never change in this test m/s^2
-    Eigen::Matrix<float, 3, 1> mag = {0.4, 0, 0.2};  // these values never change in this test mag units
+    Eigen::Matrix<float, 3, 1> mag = {0.4, 0, 0.2};  // these values never change in this test mag units 
 
 
     std::ifstream file("TeleMega_quaternion_append.csv");

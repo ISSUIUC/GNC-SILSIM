@@ -3,6 +3,20 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import pandas as pd
 
+def rotation_matrix(roll_pitch_yaw):
+    roll, pitch, yaw = roll_pitch_yaw[0], roll_pitch_yaw[1], roll_pitch_yaw[2]
+    ca, sa = np.cos(yaw), np.sin(yaw)
+    cb, sb = np.cos(pitch),  np.sin(pitch)
+    cg, sg = np.cos(roll),   np.sin(roll)
+
+    R = np.array([
+        [cb*cg,  sa*sb*cg - ca*sg,  ca*sb*cg + sa*sg],
+        [cb*sg,  sa*sb*sg + ca*cg,  ca*sb*sg - sa*cg],
+        [-sb,    sa*cb,             ca*cb            ]
+    ])
+
+    return R
+
 
 
 # https://automaticaddison.com/how-to-convert-a-quaternion-to-a-rotation-matrix/
@@ -29,7 +43,10 @@ df = pd.read_csv('../gnc/mqekf_quaternion_output.csv')
 df_non_filter =  pd.read_csv('../gnc/TeleMega_quaternion_append.csv')  
 # Convert to NumPy array
 quats = df[['quaternion_w', 'quaternion_x', 'quaternion_y', 'quaternion_z']].to_numpy()  # pull quaternion rows
-quats_unfilter = df_non_filter[['quaternion_w', 'quaternion_x', 'quaternion_y', 'quaternion_z']].to_numpy()  # pull quaternion rows
+#quats_unfilter = df_non_filter[['quaternion_w', 'quaternion_x', 'quaternion_y', 'quaternion_z']].to_numpy()  # pull quaternion rows
+quats_unfilter = df_non_filter[['gyro_roll', 'gyro_pitch', 'gyro_yaw']].to_numpy()  # pull quaternion rows
+#print(df_non_filter[0:5])
+
 
 
 fig = plt.figure(figsize=(14, 6))
@@ -85,9 +102,9 @@ def update(i):
         line.set_data([0, vec[0]], [0, vec[1]])
         line.set_3d_properties([0, vec[2]])
     
-    q_unfilt = quats_unfilter[i]
-    q_unfilt = q_unfilt / np.linalg.norm(q_unfilt)
-    R_unfilt = quat_to_rotmat(q_unfilt)
+    #q_unfilt = quats_unfilter[i]
+    #q_unfilt = q_unfilt / np.linalg.norm(q_unfilt)
+    R_unfilt = rotation_matrix(quats_unfilter[i])
     axes_unfilt = R_unfilt @ np.eye(3)
     
     for line, vec in zip(lines_unfiltered, axes_unfilt.T):

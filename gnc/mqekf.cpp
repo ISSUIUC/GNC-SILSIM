@@ -13,7 +13,7 @@ QuaternionMEKF::QuaternionMEKF(
     sigmas << sigma_a, sigma_m;
     R = sigmas.array().square().matrix().asDiagonal();
 
-    qref.setIdentity();
+    qref.setIdentity(); // 1,0,0,0
     x.setZero();
     P.setZero();
     P.block<3, 3>(0, 0) = Pq0 * Eigen::Matrix3f::Identity();
