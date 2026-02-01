@@ -7,26 +7,25 @@ using namespace Eigen;
 
 int main()
 {
-    Eigen::Matrix<float, 3, 1> sigma_a = {150e-6 * 9.81 * sqrt(200.0f), 150e-6 * 9.81 * sqrt(200.0f),150e-6 * 9.81 * sqrt(200.0f)}; // 150e-6 g * root(Hz) * 9.81 m/s^2
+    Eigen::Matrix<float, 3, 1> sigma_a = {160*sqrt(100.0f)*1e-6*9.81,160*sqrt(100.0f)*1e-6*9.81,190*sqrt(100.0f)*1e-6*9.81}; // ug/sqrt(Hz) *sqrt(hz). values are from datasheet
     Eigen::Matrix<float, 3, 1> sigma_g = {0.1 * M_PI / 180, 0.1 * M_PI / 180, 0.1* M_PI / 180}; // 0.1 deg/s
-    Eigen::Matrix<float, 3, 1> sigma_m = {0.0004 , 0.0004 , 0.0004 }; // 0.4 mGauss
+    Eigen::Matrix<float, 3, 1> sigma_m = {0.4e-8/sqrt(3) , 0.4e-8/sqrt(3) , 0.4e-8/sqrt(3) }; // 0.4 mG -> T, it is 0.4 total so we divide by sqrt3
 
     QuaternionMEKF mekf(sigma_a, sigma_g, sigma_m);
 
     Eigen::Matrix<float, 3, 1> acc0 = {-9.81, 0, 0}; // Factored in
-    Eigen::Matrix<float, 3, 1> mag0 = {0.4, 0, 0.2}; // Factored in ??
+    Eigen::Matrix<float, 3, 1> mag0 = {-0.34*1e-4,-0.01*1e-4,-0.75 *1e-4}; // Factored in ??
 
     mekf.initialize_from_acc_mag(acc0, mag0);
     Eigen::Matrix<float, 4, 1> quat = mekf.quaternion();
 
     std::cout << "[" << quat[0] << ", " << quat[1] << ", " << quat[2] << ", " << quat[3] << "]," << std::endl;
 
-    Eigen::Matrix<float, 3, 1> gyr = {0.1, 0, 0}; // these values never change in this test rad/s  
-    Eigen::Matrix<float, 3, 1> acc = {-9.8, 0, 0};  // these values never change in this test m/s^2
-    Eigen::Matrix<float, 3, 1> mag = {0.4, 0, 0.2};  // these values never change in this test mag units 
+    Eigen::Matrix<float, 3, 1> gyr;  
+    Eigen::Matrix<float, 3, 1> acc;
+    Eigen::Matrix<float, 3, 1> mag; 
 
-
-    std::ifstream file("TeleMega_quaternion_append.csv");
+    std::ifstream file("../data/Aether_Telemega.csv");
     
     if (!file.is_open()) {
         std::cerr << "Error opening file!" << std::endl;
@@ -56,7 +55,7 @@ int main()
         if (row.size() > 24) {
             std::vector<double> accel_sample = {std::stod(row[16]), std::stod(row[17]), std::stod(row[18])};
             std::vector<double> gyro_sample = {std::stod(row[19]), std::stod(row[20]), std::stod(row[21])};
-            std::vector<double> mag_sample = {std::stod(row[22]), std::stod(row[23]), std::stod(row[24])};
+            std::vector<double> mag_sample = {std::stod(row[22])*1e-4, std::stod(row[23])*1e-4, std::stod(row[24])*1e-4};
             accel_pull.push_back(accel_sample);
             gyro_pull.push_back(gyro_sample);
             mag_pull.push_back(mag_sample);
@@ -89,7 +88,7 @@ int main()
         gyr << gyro_pull[i][0], gyro_pull[i][1], gyro_pull[i][2];
         mag << mag_pull[i][0], mag_pull[i][1], mag_pull[i][2];
 
-        mekf.time_update(gyr, 0.1f);
+        mekf.time_update(gyr, 0.01f);
         mekf.measurement_update(acc, mag);
         quat = mekf.quaternion();
         std::cout << "[" << quat[0] << ", " << quat[1] << ", " << quat[2] << ", " << quat[3] << "]" << std::endl;

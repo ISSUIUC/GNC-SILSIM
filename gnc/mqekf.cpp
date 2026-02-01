@@ -136,15 +136,12 @@ Eigen::Matrix<float, 3, 1> QuaternionMEKF::magnetometer_measurement_func() const
 
 Eigen::Matrix<float, 6, 6> QuaternionMEKF::initialize_Q(Eigen::Matrix<float, 3, 1> sigma_g)
 {
-    Eigen::Matrix<float, 6, 6> R =
-        (Eigen::Matrix<float, 6, 1>() << sigma_g.array().square().matrix(),
-         1e-12,
-         1e-12,
-         1e-12)
-            .finished()
-            .asDiagonal();
+    Eigen::Matrix<float, 6, 6> Q = Eigen::Matrix<float, 6, 6>::Zero();
+    Q.block<3,3>(0,0) = sigma_g.array().square().matrix().asDiagonal();
+    Q.block<3,3>(3,3) = 1e-12 * Eigen::Matrix3f::Identity();
+    return Q;
 
-    return R;
+
 }
 
 

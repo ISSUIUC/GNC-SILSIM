@@ -51,7 +51,7 @@ quiver = ax.quiver(
 
 # ---------- UPDATE FUNCTION ----------
 def update(i):
-    r = R.from_euler("xyz", [roll[i], pitch[i], yaw[i]], degrees=True)
+    r = R.from_euler("zxy", [roll[i], pitch[i], yaw[i]], degrees=True)
     rotated = r.apply(body_axes)
 
     quiver.set_segments([
