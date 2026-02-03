@@ -15,9 +15,16 @@ public:
     void initialize_from_acc_mag(Eigen::Matrix<float, 3, 1> const &acc, Eigen::Matrix<float, 3, 1> const &mag);
     void time_update(Eigen::Matrix<float, 3, 1> const &gyr, float Ts);
     void measurement_update(Eigen::Matrix<float, 3, 1> const &acc, Eigen::Matrix<float, 3, 1> const &mag);
+    void measurement_update_partial(
+    Eigen::Matrix<float, 3, 1> const& meas,
+    Eigen::Ref<Eigen::Matrix<float, 3, 1> const> const& vhat,
+    Eigen::Ref<Eigen::Matrix<float, 3, 3> const> const& Rm);
     Eigen::Matrix<float, 4, 1> quaternion();
     Eigen::Matrix<float, 6, 6> covariance();
     Eigen::Matrix<float, 3, 1> gyroscope_bias();
+    Eigen::Matrix<float, 3, 1> accelerometer_measurement_func() const;
+    Eigen::Matrix<float, 3, 3> Racc, Rmag;
+
     
 
 private:
@@ -34,13 +41,12 @@ private:
     // Quaternion update matrix
     Eigen::Matrix<float, 4, 4> F;
 
-    Eigen::Matrix<float, 3, 3> Racc, Rmag;
+    
     Eigen::Matrix<float, 6, 6> R;
     Eigen::Matrix<float, 6, 6> Q;
 
     void set_transition_matrix(const Eigen::Ref<const Eigen::Matrix<float, 3, 1>> &gyr, float Ts);
     Eigen::Matrix<float, 3, 3> skew_symmetric_matrix(const Eigen::Ref<const Eigen::Matrix<float, 3, 1>> &vec) const;
-    Eigen::Matrix<float, 3, 1> accelerometer_measurement_func() const;
     Eigen::Matrix<float, 3, 1> magnetometer_measurement_func() const;
 
     static Eigen::Matrix<float, 6, 6> initialize_Q(Eigen::Matrix<float, 3, 1> sigma_g);
