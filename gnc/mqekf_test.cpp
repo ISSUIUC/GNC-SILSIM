@@ -9,12 +9,12 @@ int main()
 {
     Eigen::Matrix<float, 3, 1> sigma_a = {160*sqrt(100.0f)*1e-6*9.81,160*sqrt(100.0f)*1e-6*9.81,190*sqrt(100.0f)*1e-6*9.81}; // ug/sqrt(Hz) *sqrt(hz). values are from datasheet
     Eigen::Matrix<float, 3, 1> sigma_g = {0.1 * M_PI / 180, 0.1 * M_PI / 180, 0.1* M_PI / 180}; // 0.1 deg/s
-    Eigen::Matrix<float, 3, 1> sigma_m = {0.4e-8/sqrt(3) , 0.4e-8/sqrt(3) , 0.4e-8/sqrt(3) }; // 0.4 mG -> T, it is 0.4 total so we divide by sqrt3
+    Eigen::Matrix<float, 3, 1> sigma_m = {0.4e-4/sqrt(3) , 0.4e-4/sqrt(3) , 0.4e-4/sqrt(3) }; // 0.4 mG -> T, it is 0.4 total so we divide by sqrt3
 
     QuaternionMEKF mekf(sigma_a, sigma_g, sigma_m);
 
     Eigen::Matrix<float, 3, 1> acc0 = {9.76,0.57,0.08}; // Factored in
-    Eigen::Matrix<float, 3, 1> mag0 = {-0.34*1e-4,-0.01*1e-4, 0.75 *1e-4}; // Factored in ??
+    Eigen::Matrix<float, 3, 1> mag0 = {-0.34,-0.01, 0.75}; // Factored in ??
 
     mekf.initialize_from_acc_mag(acc0, mag0);
     Eigen::Matrix<float, 4, 1> quat = mekf.quaternion();
@@ -85,7 +85,7 @@ int main()
     for (int i = 0; i < n; i++)
     {
         acc << accel_pull[i][0], accel_pull[i][1], accel_pull[i][2];
-        gyr << gyro_pull[i][0] , gyro_pull[i][1], gyro_pull[i][2];
+        gyr << gyro_pull[i][0] * M_PI / 180, gyro_pull[i][1] * M_PI / 180, gyro_pull[i][2] * M_PI / 180;
         mag << mag_pull[i][0], mag_pull[i][1], mag_pull[i][2];
         
      
