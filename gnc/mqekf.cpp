@@ -200,7 +200,7 @@ Eigen::Matrix<float, 6, 6> QuaternionMEKF::initialize_Q(Eigen::Matrix<float, 3, 
 void QuaternionMEKF::initialize_from_acc_mag(Eigen::Matrix<float, 3, 1> const &acc, Eigen::Matrix<float, 3, 1> const &mag)
 {
     float const anorm = acc.norm();
-    v1ref << -anorm, 0, 0;
+    v1ref << anorm, 0, 0;
 
     
     Eigen::Matrix<float, 3, 1> const acc_normalized = acc / anorm;

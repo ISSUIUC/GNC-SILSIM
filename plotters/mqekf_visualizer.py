@@ -30,17 +30,17 @@ def quat_to_rotmat(q):
 
 import os
 
-file1 = r'../gnc/mqekf_quaternion_output.csv'
-file2 = r'../data/Telemega.csv'
+file1 = r'../output/mqekf_quaternion_output.csv'
 
 print(f"File 1 exists: {os.path.exists(file1)}")
-print(f"File 2 exists: {os.path.exists(file2)}")
 
 if not os.path.exists(file1):
     print(f"Looking for: {os.path.abspath(file1)}")
 
 df = pd.read_csv(file1)  
-df_non_filter =  pd.read_csv(file2)  
+
+print(df.columns)
+
 # Convert to NumPy array
 quats = df[['quaternion_w', 'quaternion_x', 'quaternion_y', 'quaternion_z']].to_numpy()  # pull quaternion rows
 #quats_unfilter = df_non_filter[['quaternion_w', 'quaternion_x', 'quaternion_y', 'quaternion_z']].to_numpy()  # pull quaternion rows
@@ -50,7 +50,7 @@ quats = df[['quaternion_w', 'quaternion_x', 'quaternion_y', 'quaternion_z']].to_
 
 
 fig = plt.figure(figsize=(14, 6))
-ax1 = fig.add_subplot(121, projection="3d")
+ax1 = fig.add_subplot(111, projection="3d")
 
 ax1.set_xlim([-1, 1])
 ax1.set_ylim([-1, 1])
@@ -61,14 +61,14 @@ ax1.set_zlabel("Z")
 ax1.set_title("Filtered (MQEKF)")
 
 
-ax2 = fig.add_subplot(122, projection="3d")
-ax2.set_xlim([-1, 1])
-ax2.set_ylim([-1, 1])
-ax2.set_zlim([-1, 1])
-ax2.set_xlabel("X")
-ax2.set_ylabel("Y")
-ax2.set_zlabel("Z")
-ax2.set_title("Unfiltered (TeleMega)")
+# ax2 = fig.add_subplot(122, projection="3d")
+# ax2.set_xlim([-1, 1])
+# ax2.set_ylim([-1, 1])
+# ax2.set_zlim([-1, 1])
+# ax2.set_xlabel("X")
+# ax2.set_ylabel("Y")
+# ax2.set_zlabel("Z")
+# ax2.set_title("Unfiltered (TeleMega)")
 
 # Body axes for filtered
 lines_filtered = [
@@ -77,17 +77,17 @@ lines_filtered = [
     ax1.plot([], [], [], 'b', lw=3, label='Z')[0],
 ]
 
-# Body axes for unfiltered
-lines_unfiltered = [
-    ax2.plot([], [], [], 'r', lw=3, label='X')[0],
-    ax2.plot([], [], [], 'g', lw=3, label='Y')[0],
-    ax2.plot([], [], [], 'b', lw=3, label='Z')[0],
-]
+# # Body axes for unfiltered
+# lines_unfiltered = [
+#     ax2.plot([], [], [], 'r', lw=3, label='X')[0],
+#     ax2.plot([], [], [], 'g', lw=3, label='Y')[0],
+#     ax2.plot([], [], [], 'b', lw=3, label='Z')[0],
+# ]
 
 ax1.legend()
-ax2.legend()
+# ax2.legend()
 
-time_array = df_non_filter['time'].to_numpy()
+time_array = df['timestamp'].to_numpy()
 
 def update(i):
     
