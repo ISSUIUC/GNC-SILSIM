@@ -13,8 +13,8 @@ int main()
 
     QuaternionMEKF mekf(sigma_a, sigma_g, sigma_m);
 
-    Eigen::Matrix<float, 3, 1> acc0 = {-9.81, 0, 0}; // Factored in
-    Eigen::Matrix<float, 3, 1> mag0 = {-0.34*1e-4,-0.01*1e-4,-0.75 *1e-4}; // Factored in ??
+    Eigen::Matrix<float, 3, 1> acc0 = {9.76,0.57,0.08}; // Factored in
+    Eigen::Matrix<float, 3, 1> mag0 = {-0.34*1e-4,-0.01*1e-4, 0.75 *1e-4}; // Factored in ??
 
     mekf.initialize_from_acc_mag(acc0, mag0);
     Eigen::Matrix<float, 4, 1> quat = mekf.quaternion();
@@ -85,8 +85,10 @@ int main()
     for (int i = 0; i < n; i++)
     {
         acc << accel_pull[i][0], accel_pull[i][1], accel_pull[i][2];
-        gyr << gyro_pull[i][0], gyro_pull[i][1], gyro_pull[i][2];
+        gyr << gyro_pull[i][0] , gyro_pull[i][1], gyro_pull[i][2];
         mag << mag_pull[i][0], mag_pull[i][1], mag_pull[i][2];
+        
+     
 
         mekf.time_update(gyr, 0.01f);
         mekf.measurement_update(acc, mag);
