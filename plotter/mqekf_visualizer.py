@@ -31,7 +31,7 @@ def quat_to_rotmat(q):
 import os
 
 file1 = r'../gnc/mqekf_quaternion_output.csv'
-file2 = r'../gnc/TeleMega_quaternion_append.csv'
+file2 = r'../data/Aether_Telemega.csv'
 
 print(f"File 1 exists: {os.path.exists(file1)}")
 print(f"File 2 exists: {os.path.exists(file2)}")
@@ -39,12 +39,12 @@ print(f"File 2 exists: {os.path.exists(file2)}")
 if not os.path.exists(file1):
     print(f"Looking for: {os.path.abspath(file1)}")
 
-df = pd.read_csv('../gnc/mqekf_quaternion_output.csv')  
-df_non_filter =  pd.read_csv('../gnc/TeleMega_quaternion_append.csv')  
+df = pd.read_csv(file1)  
+df_non_filter =  pd.read_csv(file2)  
 # Convert to NumPy array
 quats = df[['quaternion_w', 'quaternion_x', 'quaternion_y', 'quaternion_z']].to_numpy()  # pull quaternion rows
 #quats_unfilter = df_non_filter[['quaternion_w', 'quaternion_x', 'quaternion_y', 'quaternion_z']].to_numpy()  # pull quaternion rows
-quats_unfilter = df_non_filter[['gyro_roll', 'gyro_pitch', 'gyro_yaw']].to_numpy()  # pull quaternion rows
+#quats_unfilter = df_non_filter[['gyro_roll', 'gyro_pitch', 'gyro_yaw']].to_numpy()  # pull quaternion rows
 #print(df_non_filter[0:5])
 
 
@@ -87,7 +87,7 @@ lines_unfiltered = [
 ax1.legend()
 ax2.legend()
 
-time_array = df_non_filter['time'].to_numpy()
+time_array = df_non_filter[' time '].to_numpy()
 
 def update(i):
     
@@ -104,15 +104,15 @@ def update(i):
     
     #q_unfilt = quats_unfilter[i]
     #q_unfilt = q_unfilt / np.linalg.norm(q_unfilt)
-    R_unfilt = rotation_matrix(quats_unfilter[i])
-    axes_unfilt = R_unfilt @ np.eye(3)
+    #R_unfilt = rotation_matrix(quats_unfilter[i])
+    # axes_unfilt = np.eye(3)
     
-    for line, vec in zip(lines_unfiltered, axes_unfilt.T):
-        line.set_data([0, vec[0]], [0, vec[1]])
-        line.set_3d_properties([0, vec[2]])
+    # for line, vec in zip(lines_unfiltered, axes_unfilt.T):
+    #     line.set_data([0, vec[0]], [0, vec[1]])
+    #     line.set_3d_properties([0, vec[2]])
     
-    return lines_filtered + lines_unfiltered
+    return lines_filtered # + lines_unfiltered
 
-ani = FuncAnimation(fig, update, frames=min(len(quats), len(quats_unfilter)), interval = 0.0001, blit=True)
+ani = FuncAnimation(fig, update, frames=len(quats), interval = 0.0001, blit=True)
 plt.tight_layout()
 plt.show()
