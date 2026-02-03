@@ -31,7 +31,7 @@ def quat_to_rotmat(q):
 import os
 
 file1 = r'../gnc/mqekf_quaternion_output.csv'
-file2 = r'../data/Aether_Telemega.csv'
+file2 = r'../data/Telemega.csv'
 
 print(f"File 1 exists: {os.path.exists(file1)}")
 print(f"File 2 exists: {os.path.exists(file2)}")
@@ -87,7 +87,7 @@ lines_unfiltered = [
 ax1.legend()
 ax2.legend()
 
-time_array = df_non_filter[' time '].to_numpy()
+time_array = df_non_filter['time'].to_numpy()
 
 def update(i):
     
