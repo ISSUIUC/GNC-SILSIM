@@ -224,3 +224,31 @@ Eigen::Matrix<float, 3, 1> QuaternionMEKF::gyroscope_bias()
 {
     return x.tail(3);
 }
+
+
+
+Eigen::Matrix<float, 3, 1> QuaternionMEKF::quatToEuler(const Eigen::Matrix<float,4,1> & q)
+{
+
+
+    double w = q[0];
+    double x = q[1];
+    double y = q[2];
+    double z = q[3];
+
+    double sinr_cosp = 2.0 * (w*x + y*z);
+    double cosr_cosp = 1.0 - 2.0 * (x*x + y*y);
+    double roll = std::atan2(sinr_cosp, cosr_cosp);
+
+    double sinp = 2.0 * (w*y - z*x);
+    double pitch;
+    if (std::abs(sinp) >= 1)
+        pitch = std::copysign(M_PI/2, sinp); 
+    else
+        pitch = std::asin(sinp);
+
+    double siny_cosp = 2.0 * (w*z + x*y);
+    double cosy_cosp = 1.0 - 2.0 * (y*y + z*z);
+    double yaw = std::atan2(siny_cosp, cosy_cosp);
+    return Eigen::Matrix<float, 3, 1>(roll, pitch, yaw);
+}

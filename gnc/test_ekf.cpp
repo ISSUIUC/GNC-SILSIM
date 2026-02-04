@@ -103,7 +103,7 @@ public:
                 
                 row.gps.latitude = toFloatOr(getValue(values,"gps.latitude"), row.gps.latitude);
                 row.gps.longitude = toFloatOr(getValue(values,"gps.longitude"), row.gps.longitude);
-                // row.gps.altitude = toFloatOr(getValue(values,"gps.altitude"), row.gps.altitude);
+                row.gps.altitude = toFloatOr(getValue(values,"gps.altitude"), row.gps.altitude);
                 // row.gps.fix_type = toFloatOr(getValue(values,"gps.fix_type"), row.gps.fix_type);
                 // row.gps.time = toFloatOr(getValue(values,"gps.time"), row.gps.time);
 
@@ -251,8 +251,8 @@ public:
             //     break;
             // }
             
-            float dt = (data.timestamp - last_timestamp) / 1000.0f;
-            if (dt < 0 || dt > 1.0f) dt = 0.05f;
+            float dt = (data.timestamp - last_timestamp);
+            if (dt < 0 || dt > 1.0f) dt = 0.01f;
             
             updateSensorBuffers(data);
             

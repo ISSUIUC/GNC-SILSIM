@@ -33,7 +33,7 @@ echo ------------------------------------------------------------
 echo Step 3: Run EKF on selected data file
 echo ------------------------------------------------------------
 cd ..
-set "DATA_FILE=./data/MIDAS_booster.csv"
+set "DATA_FILE=./output/mqekf_quaternion_output.csv"
 set "OUTPUT_FILE=./output/results.csv"
 
 echo Using data file: %DATA_FILE%

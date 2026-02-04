@@ -57,8 +57,8 @@ private:
     float Wind_alpha = 0.85f;
     float Cp = 0;
     float curr_mass_kg = mass_full; //(kg) Sustainer + Booster, but value changes over time.
-    std::vector<float> starting_gps;    // latitude, longitude, altitude
-    std::vector<float> starting_ecef;   // x, y, z
+    std::vector<double> starting_gps;    // latitude, longitude, altitude
+    std::vector<double> starting_ecef;   // x, y, z
 
     // Eigen::Matrix<float,3,1> gravity = Eigen::Matrix<float,3,1>::Zero();
     KalmanState kalman_state;
@@ -70,10 +70,10 @@ private:
     KalmanData state;
     
     // GPS reference coordinates
-    float gps_latitude_original = 0.0f;
-    float gps_longitude_original = 0.0f;
-    float gps_latitude_last = 0.0f;
-    float gps_longitude_last = 0.0f;
+    double gps_latitude_original = 0.0f;
+    double gps_longitude_original = 0.0f;
+    double gps_latitude_last = 0.0f;
+    double gps_longitude_last = 0.0f;
 };
 
 

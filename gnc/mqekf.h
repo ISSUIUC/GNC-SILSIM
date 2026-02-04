@@ -25,7 +25,8 @@ public:
     Eigen::Matrix<float, 3, 1> accelerometer_measurement_func() const;
     Eigen::Matrix<float, 3, 3> Racc, Rmag;
 
-    
+    Eigen::Matrix<float, 3, 1> quatToEuler(const Eigen::Matrix<float,4,1> & q);
+
 
 private:
     Eigen::Quaternion<float> qref;

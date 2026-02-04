@@ -1,6 +1,6 @@
 #include "mqekf.h"
 #include <Eigen/Eigen>
-
+#include <iomanip>
 #include <iostream>
 #include <fstream>
 using namespace Eigen;
@@ -80,14 +80,16 @@ int main(int argc, char *argv[])
             std::vector<double> gps_sample = {std::stod(row[34]), std::stod(row[35])};
             std::vector<double> altitude_sample = {std::stod(row[9])};
             std::vector<double> time_sample = {std::stod(row[4])};
+            
+
             // std::vector<double> accel_scaled = {
             //     accel_sample[0] * 9.81,
             //     accel_sample[1] * 9.81,
             //     accel_sample[2] * 9.81};
             std::vector<double> accel_scaled = {
-                accel_sample[0] ,
-                accel_sample[1] ,
-                accel_sample[2] };
+                accel_sample[0] *1,
+                accel_sample[1] *1 ,
+                accel_sample[2] *1};
             accel_pull.push_back(accel_scaled);
             gyro_pull.push_back(gyro_sample);
             mag_pull.push_back(mag_sample);
@@ -106,7 +108,6 @@ int main(int argc, char *argv[])
         return 1;
     }
     // outfile << quat[0] << "," << quat[1] << "," << quat[2] << "," << quat[3] << "\n";
-
     if (accel_pull.size() != gyro_pull.size() || accel_pull.size() != mag_pull.size())
     {
         std::cerr << "Sensor data size mismatch!" << std::endl;
@@ -114,7 +115,7 @@ int main(int argc, char *argv[])
     }
 
     int n = accel_pull.size();
-    outfile << "timestamp,quaternion_w,quaternion_x,quaternion_y,quaternion_z,highg.ax,highg.ay,highg.az,barometer.altitude,gps.latitude,gps.longitude,orientation.roll,orientation.pitch,orientation.yaw\n";
+    outfile << "timestamp,quaternion_w,quaternion_x,quaternion_y,quaternion_z,highg.ax,highg.ay,highg.az,barometer.altitude,gps.altitude,gps.latitude,gps.longitude,orientation.roll,orientation.pitch,orientation.yaw,fsm,\n";
     for (int i = 0; i < n; i++)
     {
         acc << accel_pull[i][0], accel_pull[i][1], accel_pull[i][2];
@@ -127,16 +128,19 @@ int main(int argc, char *argv[])
         mekf.time_update(gyr, 0.01f);
         mekf.measurement_update(acc, mag);
         quat = mekf.quaternion();
-        std::cout << time << ","
-                << quat[0] << "," << quat[1] << "," << quat[2] << "," << quat[3] << ","
-                << acc[0] << "," << acc[1] << "," << acc[2] << ","
-                << alt << ","
-                << gps[0]*1e9 << "," << gps[1]*1e9 <<  std::endl;
+
+        orientation = mekf.quatToEuler(quat);
+        // std::cout <<orientation[2]<<std::endl;
+        // std::cout << time << ","
+        //         << quat[0] << "," << quat[1] << "," << quat[2] << "," << quat[3] << ","
+        //         << acc[0] << "," << acc[1] << "," << acc[2] << ","
+        //         << alt << ","
+        //         << gps[0]*1e9 << "," << gps[1]*1e9 <<  std::endl;
         outfile << time << ","
                 << quat[0] << "," << quat[1] << "," << quat[2] << "," << quat[3] << ","
                 << acc[0] << "," << acc[1] << "," << acc[2] << ","
-                << alt << ","
-                << gps[0]*1e9 << "," << gps[1] *1e9<< ",,,\n";
+                << alt << ","<< alt << ","
+                << (int)(gps[0]*1e7) << "," << (int)(gps[1]*1e7)<<"," << orientation[0]<< "," <<  orientation[1]<< "," << orientation[2]<< ","<<"STATE_COAST" <<"\n" ;
         // mekf.measurement_update_acc_only(acc);
 
         if (i % 100 == 0)

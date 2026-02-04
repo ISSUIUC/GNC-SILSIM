@@ -372,28 +372,28 @@ void EKF::compute_gps_inputs(GPS &gps, FSMState fsm)
      *  */
     reference_GPS(gps, fsm);
 
-    float lat = gps.latitude / 1e7; // deviding by 1e7 to convert from int to float
-    float lon = gps.longitude / 1e7;
-    float alt = gps.altitude;
+    double lat = gps.latitude / 1e7; // deviding by 1e7 to convert from int to float
+    double lon = gps.longitude / 1e7;
+    double alt = gps.altitude;
     if (abs(lat - gps_latitude_last) <= 1e-5 && abs(lon - gps_longitude_last) <= 1e-5)
     {
         return;
     }
 
     // Convert GPS to ECEF
-    std::vector<float> rocket_cords = gps_to_ecef(lat, lon, alt);
-    std::vector<float> reference_cord = gps_to_ecef(gps_latitude_original, gps_longitude_original, 0);
+    std::vector<double> rocket_cords = gps_to_ecef(lat, lon, alt);
+    std::vector<double> reference_cord = gps_to_ecef(gps_latitude_original, gps_longitude_original, 0);
 
-    float gps_latitude_original_rad = gps_latitude_original * pi / 180;
-    float gps_longitude_original_rad = gps_longitude_original * pi / 180;
+    double gps_latitude_original_rad = gps_latitude_original * pi / 180;
+    double gps_longitude_original_rad = gps_longitude_original * pi / 180;
 
     double dx = rocket_cords[0] - reference_cord[0];
     double dy = rocket_cords[1] - reference_cord[1];
     double dz = rocket_cords[2] - reference_cord[2];
 
-    float east = -std::sin(gps_longitude_original_rad) * dx + std::cos(gps_longitude_original_rad) * dy;
-    float north = -std::sin(gps_latitude_original_rad) * std::cos(gps_longitude_original_rad) * dx - std::sin(gps_latitude_original_rad) * std::sin(gps_longitude_original_rad) * dy + std::cos(gps_latitude_original_rad) * dz;
-    float up = std::cos(gps_latitude_original_rad) * std::cos(gps_longitude_original_rad) * dx + std::cos(gps_latitude_original_rad) * std::sin(gps_longitude_original_rad) * dy + std::sin(gps_latitude_original_rad) * dz;
+    double east = -std::sin(gps_longitude_original_rad) * dx + std::cos(gps_longitude_original_rad) * dy;
+    double north = -std::sin(gps_latitude_original_rad) * std::cos(gps_longitude_original_rad) * dx - std::sin(gps_latitude_original_rad) * std::sin(gps_longitude_original_rad) * dy + std::cos(gps_latitude_original_rad) * dz;
+    double up = std::cos(gps_latitude_original_rad) * std::cos(gps_longitude_original_rad) * dx + std::cos(gps_latitude_original_rad) * std::sin(gps_longitude_original_rad) * dy + std::sin(gps_latitude_original_rad) * dz;
 
     // Update Kalman filter state CHECK THIS ORIENTATION ... NOT SURE IF THIS IS RIGHT
     x_k(3, 0) = east;
