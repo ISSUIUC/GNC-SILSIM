@@ -1,16 +1,15 @@
 #pragma once
 
 #include "kalman_filter.h"
-//#include "sensor_data.h"
-//#include "Buffer.h" 
-#include "sensor_data.h" // for sim
-#include "Buffer.h" // for sim
+#include "sensor_data.h"
+#include "Buffer.h" 
 #include "constants.h"
 #include "aero_coeff.h"
 #include "rotation.h"
 
-#define NUM_STATES 9
-#define NUM_SENSOR_INPUTS 4
+#define NUM_STATES 6  // [x, vx, y, vy, z, vz] - position and velocity only
+#define NUM_SENSOR_INPUTS 4  // barometer, gps_x, gps_y, gps_z
+#define NUM_CONTROL_INPUTS 3  // acceleration as control input [ax, ay, az]
 #define ALTITUDE_BUFFER_SIZE 10
 
 
@@ -23,27 +22,16 @@ public:
     EKF();
     void initialize(RocketSystems* args) override;
     // void priori();
-    void priori(float dt, Orientation &orientation, FSMState fsm); 
+    void priori(float dt, Orientation &orientation, FSMState fsm, Acceleration acceleration); 
     void update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState state, GPS &gps) override;
 
     void setQ(float dt, float sd);
-    void setF(float dt, float w_x, float w_y, float w_z, FSMState fsm, float v_x,float v_y, float v_z); 
-
-    // void BodyToGlobal(euler_t angles, Eigen::Matrix<float, 3, 1> &body_vec);
-    // void GlobalToBody(euler_t angles, Eigen::Matrix<float, 3, 1> &global_vec);
+    void setF(float dt);
+    void setB(float dt);  // Set control input matrix for acceleration 
 
     KalmanData getState() override;
     void setState(KalmanState state) override;
-    void compute_mass(FSMState fsm);
-    void compute_kalman_gain();
-    void compute_gps_inputs(GPS &gps, FSMState fsm);
     void reference_GPS(GPS &gps, FSMState fsm); 
-    // std::vector<float> ECEF(float lat, float lon, float alt);
-
-    void compute_drag_coeffs(float vel_magnitude_ms);
-    void compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot);
-
-    void getThrust(float timestamp, const euler_t& angles, FSMState FSM_state, Eigen::Vector3f& thrust_out);
 
     void tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState state, GPS &gps);
    
@@ -60,19 +48,33 @@ private:
     float Wind_alpha = 0.85f;
     float Cp = 0;
     float curr_mass_kg = mass_full; //(kg) Sustainer + Booster, but value changes over time.
-    float gps_latitude_original;
-    float gps_longitude_original;
-    float gps_latitude_last; //we don't want to update gps if it's the same as the previously updated value.
-    float gps_longitude_last;//we don't want to update gps if it's the same as the previously updated value.
+    std::vector<float> starting_gps;    // latitude, longitude, altitude
+    std::vector<float> starting_ecef;   // x, y, z
 
     // Eigen::Matrix<float,3,1> gravity = Eigen::Matrix<float,3,1>::Zero();
     KalmanState kalman_state;
     FSMState last_fsm = FSMState::STATE_IDLE;
     float stage_timestamp = 0;
+    
+    // Track how long we've been in LANDED state to avoid false positives
+    float landed_state_duration = 0.0f;
+    bool was_landed_last = false;
 
     Eigen::Matrix<float, 3, 1> init_accel = Eigen::Matrix<float, 3, 1>::Zero();
     Buffer<float, ALTITUDE_BUFFER_SIZE> alt_buffer;
     KalmanData state;
+    
+    // Control input matrix for acceleration [ax, ay, az]
+    Eigen::Matrix<float, NUM_STATES, NUM_CONTROL_INPUTS> B_mat;
+    
+    // Last computed control input (acceleration) - filled by priori(), used by update() for state output
+    Eigen::Matrix<float, NUM_CONTROL_INPUTS, 1> u_control;
+    
+    // GPS reference coordinates
+    float gps_latitude_original = 0.0f;
+    float gps_longitude_original = 0.0f;
+    float gps_latitude_last = 0.0f;
+    float gps_longitude_last = 0.0f;
 };
 
 
