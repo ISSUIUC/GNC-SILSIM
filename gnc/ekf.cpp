@@ -59,9 +59,9 @@ void EKF::initialize(RocketSystems *args)
 
     // set Measurement Noise Matrix
     R(0, 0) = 1.9;  // barometer noise
-    R(1, 1) = 9.0f;  // GPS altitude noise (lower trust)
-    R(2, 2) = 4.0f; // GPS east noise 
-    R(3, 3) = 4.0f; // GPS north noise 
+    R(1, 1) = 4.0f;  // GPS altitude noise (lower trust)
+    R(2, 2) = 3.0f; // GPS east noise 
+    R(3, 3) = 3.0f; // GPS north noise 
 }
 
 /**
@@ -179,6 +179,34 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
         // Update state and covariance
         x_k = x_priori + K * innovation;
         P_k = (identity - K * H_baro) * P_priori;
+    }
+
+    bool is_landed = (FSM_state == FSMState::STATE_LANDED);
+    if (is_landed)
+    {
+        if (was_landed_last)
+        {
+            landed_state_duration += s_dt;  // Accumulate time in LANDED state
+        }
+        else
+        {
+            landed_state_duration = s_dt;  // Reset timer
+        }
+        
+        // Only reset velocities if we've been landed for at least 0.5 seconds
+        if (landed_state_duration >= 0.5f)
+        {
+            x_k(3, 0) = 0.0f;  // velocity y (vy) = 0 when landed
+            x_k(5, 0) = 0.0f;  // velocity z (vz) = 0 when landed
+        }
+    }
+    else
+    {
+        // Negate velocity z if it's negative (so negative becomes positive)
+        if (x_k(5, 0) < 0)  // velocity z (vz)
+        {
+            x_k(5, 0) = -x_k(5, 0);  // Negate negative velocity z to make it positive
+        }
     }
 
     // Update output state structure
