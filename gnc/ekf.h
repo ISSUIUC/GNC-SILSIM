@@ -1,10 +1,8 @@
 #pragma once
 
 #include "kalman_filter.h"
-//#include "sensor_data.h"
-//#include "Buffer.h" 
-#include "sensor_data.h" // for sim
-#include "Buffer.h" // for sim
+#include "sensor_data.h"
+#include "Buffer.h" 
 #include "constants.h"
 #include "aero_coeff.h"
 #include "rotation.h"
@@ -28,28 +26,14 @@ public:
     void update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState state, GPS &gps) override;
 
     void setQ(float dt, float sd);
-    void setF(float dt, float w_x, float w_y, float w_z, FSMState fsm, float v_x,float v_y, float v_z);
+    void setF(float dt);
     void setB(float dt);  // Set control input matrix for acceleration 
-
-    // void BodyToGlobal(euler_t angles, Eigen::Matrix<float, 3, 1> &body_vec);
-    // void GlobalToBody(euler_t angles, Eigen::Matrix<float, 3, 1> &global_vec);
 
     KalmanData getState() override;
     void setState(KalmanState state) override;
-    void compute_mass(FSMState fsm);
-    void compute_kalman_gain();
-    void compute_gps_inputs(GPS &gps, FSMState fsm);
     void reference_GPS(GPS &gps, FSMState fsm); 
 
-    // void compute_drag_coeffs(float vel_magnitude_ms);
-    // void compute_x_dot(float dt, Orientation &orientation, FSMState fsm, Eigen::Matrix<float, 9, 1> &xdot);
-
-    // void getThrust(float timestamp, const euler_t& angles, FSMState FSM_state, Eigen::Vector3f& thrust_out);
-
     void tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState state, GPS &gps);
-
-    /** Print the final posterior covariance matrix P_k to stdout (state order: x, vx, y, vy, z, vz). */
-    void printCovariance() const;
    
     bool should_reinit = false;
     float current_vel = 0.0f;
@@ -81,10 +65,10 @@ private:
     KalmanData state;
     
     // Control input matrix for acceleration [ax, ay, az]
-    Eigen::Matrix<float, NUM_STATES, NUM_CONTROL_INPUTS> B_control;
+    Eigen::Matrix<float, NUM_STATES, NUM_CONTROL_INPUTS> B_mat;
     
     // Last computed control input (acceleration) - filled by priori(), used by update() for state output
-    Eigen::Matrix<float, NUM_CONTROL_INPUTS, 1> u_control_last_;
+    Eigen::Matrix<float, NUM_CONTROL_INPUTS, 1> u_control;
     
     // GPS reference coordinates
     float gps_latitude_original = 0.0f;

@@ -241,16 +241,15 @@ public:
         initializeEKF();
         
         float last_timestamp = start_time;
-
-        // Per-tick timing (microseconds)
-        double sum_us = 0.0;
-        double sum_sq_us = 0.0;
-        size_t tick_count = 0;
-        double min_us = 1e9;
-        double max_us = 0.0;
         
         for (size_t i = 0; i < flight_data.size(); i++) {
             const FlightData& data = flight_data[i];
+            
+            // if (data.fsm == stop_state) {
+            //     std::cout << "Reached " << fsmToString(stop_state) << " at time " << (data.timestamp - start_time) / 1000.0f << "s" << std::endl;
+            //     std::cout << "Stopping simulation at data point " << i << std::endl;
+            //     break;
+            // }
             
             float dt = (data.timestamp - last_timestamp) / 1000.0f;
             if (dt < 0 || dt > 1.0f) dt = 0.05f;
@@ -263,16 +262,7 @@ public:
             FSMState current_fsm = data.fsm;
             GPS current_gps = data.gps;
             
-            auto t_start = std::chrono::steady_clock::now();
-            ekf.tick(dt, 13.0f, current_barom, current_accel, current_orientation, current_fsm, current_gps);
-            auto t_end = std::chrono::steady_clock::now();
-            double us = std::chrono::duration<double, std::micro>(t_end - t_start).count();
-
-            sum_us += us;
-            sum_sq_us += us * us;
-            tick_count++;
-            if (us < min_us) min_us = us;
-            if (us > max_us) max_us = us;
+            ekf.tick(dt, 13.0f, current_barom, current_accel, current_orientation, current_fsm,current_gps);
             
             KalmanData current_state = ekf.getState();
             results.push_back(current_state);
@@ -294,22 +284,6 @@ public:
         }
         
         std::cout << "Simulation completed. Processed " << results.size() << " data points." << std::endl;
-
-        if (tick_count > 0) {
-            double mean_us = sum_us / tick_count;
-            double variance = (sum_sq_us / tick_count) - (mean_us * mean_us);
-            double std_us = (variance > 0) ? std::sqrt(variance) : 0.0;
-            std::cout << "\n--- EKF tick performance ---" << std::endl;
-            std::cout << std::fixed << std::setprecision(2);
-            std::cout << "  Mean:   " << mean_us << " µs per tick" << std::endl;
-            std::cout << "  Min:    " << min_us << " µs" << std::endl;
-            std::cout << "  Max:    " << max_us << " µs" << std::endl;
-            std::cout << "  StdDev: " << std_us << " µs" << std::endl;
-            std::cout << "  Rate:   " << (1e6 / mean_us) << " Hz (if run at this cadence)" << std::endl;
-            std::cout << "---" << std::endl;
-        }
-
-        ekf.printCovariance();
     }
     
     void saveResults(const std::string& filename) {

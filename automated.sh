@@ -6,7 +6,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-INPUT_FILE="data/6DOF_RK4_SIMULATED.csv"
+INPUT_FILE="data/MIDAS Trimmed (AL2, CSV).csv"
 OUTPUT_FILE="output/results.csv"
 PLOT_RESULTS=true
 STOP_STATE="STATE_LANDED"
