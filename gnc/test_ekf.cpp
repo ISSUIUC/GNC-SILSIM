@@ -104,19 +104,19 @@ public:
                 row.gps.latitude = toFloatOr(getValue(values,"gps.latitude"), row.gps.latitude);
                 row.gps.longitude = toFloatOr(getValue(values,"gps.longitude"), row.gps.longitude);
                 row.gps.altitude = toFloatOr(getValue(values,"gps.altitude"), row.gps.altitude);
-                row.gps.fix_type = toFloatOr(getValue(values,"gps.fix_type"), row.gps.fix_type);
-                row.gps.time = toFloatOr(getValue(values,"gps.time"), row.gps.time);
+                // row.gps.fix_type = toFloatOr(getValue(values,"gps.fix_type"), row.gps.fix_type);
+                // row.gps.time = toFloatOr(getValue(values,"gps.time"), row.gps.time);
 
-                row.lowg.ax = toFloatOr(getValue(values, "lowg.ax"), row.lowg.ax);
-                row.lowg.ay = toFloatOr(getValue(values, "lowg.ay"), row.lowg.ay);
-                row.lowg.az = toFloatOr(getValue(values, "lowg.az"), row.lowg.az);
+                // row.lowg.ax = toFloatOr(getValue(values, "lowg.ax"), row.lowg.ax);
+                // row.lowg.ay = toFloatOr(getValue(values, "lowg.ay"), row.lowg.ay);
+                // row.lowg.az = toFloatOr(getValue(values, "lowg.az"), row.lowg.az);
                 
                 row.highg.ax = toFloatOr(getValue(values, "highg.ax"), row.highg.ax);
                 row.highg.ay = toFloatOr(getValue(values, "highg.ay"), row.highg.ay);
                 row.highg.az = toFloatOr(getValue(values, "highg.az"), row.highg.az);
                 
-                row.barometer.temperature = toFloatOr(getValue(values, "barometer.temperature"), row.barometer.temperature);
-                row.barometer.pressure = toFloatOr(getValue(values, "barometer.pressure"), row.barometer.pressure);
+                // row.barometer.temperature = toFloatOr(getValue(values, "barometer.temperature"), row.barometer.temperature);
+                // row.barometer.pressure = toFloatOr(getValue(values, "barometer.pressure"), row.barometer.pressure);
                 row.barometer.altitude = toFloatOr(getValue(values, "barometer.altitude"), row.barometer.altitude);
                 
                 {
@@ -131,13 +131,13 @@ public:
                 row.orientation.pitch = toFloatOr(getValue(values, "orientation.pitch"), row.orientation.pitch);
                 row.orientation.roll = toFloatOr(getValue(values, "orientation.roll"), row.orientation.roll);
                 
-                row.orientation.orientation_velocity.vx = toFloatOr(getValue(values, "orientation.orientation_velocity.vx"), row.orientation.orientation_velocity.vx);
-                row.orientation.orientation_velocity.vy = toFloatOr(getValue(values, "orientation.orientation_velocity.vy"), row.orientation.orientation_velocity.vy);
-                row.orientation.orientation_velocity.vz = toFloatOr(getValue(values, "orientation.orientation_velocity.vz"), row.orientation.orientation_velocity.vz);
+                // row.orientation.orientation_velocity.vx = toFloatOr(getValue(values, "orientation.orientation_velocity.vx"), row.orientation.orientation_velocity.vx);
+                // row.orientation.orientation_velocity.vy = toFloatOr(getValue(values, "orientation.orientation_velocity.vy"), row.orientation.orientation_velocity.vy);
+                // row.orientation.orientation_velocity.vz = toFloatOr(getValue(values, "orientation.orientation_velocity.vz"), row.orientation.orientation_velocity.vz);
                 
-                row.orientation.angular_velocity.vx = toFloatOr(getValue(values, "orientation.angular_velocity.vx"), row.orientation.angular_velocity.vx);
-                row.orientation.angular_velocity.vy = toFloatOr(getValue(values, "orientation.angular_velocity.vy"), row.orientation.angular_velocity.vy);
-                row.orientation.angular_velocity.vz = toFloatOr(getValue(values, "orientation.angular_velocity.vz"), row.orientation.angular_velocity.vz);
+                // row.orientation.angular_velocity.vx = toFloatOr(getValue(values, "orientation.angular_velocity.vx"), row.orientation.angular_velocity.vx);
+                // row.orientation.angular_velocity.vy = toFloatOr(getValue(values, "orientation.angular_velocity.vy"), row.orientation.angular_velocity.vy);
+                // row.orientation.angular_velocity.vz = toFloatOr(getValue(values, "orientation.angular_velocity.vz"), row.orientation.angular_velocity.vz);
                 
                 {
                     std::string fsm_str = getValue(values, "fsm");
@@ -251,8 +251,8 @@ public:
             //     break;
             // }
             
-            float dt = (data.timestamp - last_timestamp) / 1000.0f;
-            if (dt < 0 || dt > 1.0f) dt = 0.05f;
+            float dt = (data.timestamp - last_timestamp);
+            if (dt < 0 || dt > 1.0f) dt = 0.01f;
             
             updateSensorBuffers(data);
             

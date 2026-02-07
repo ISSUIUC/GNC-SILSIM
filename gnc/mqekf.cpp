@@ -13,7 +13,7 @@ QuaternionMEKF::QuaternionMEKF(
     sigmas << sigma_a, sigma_m;
     R = sigmas.array().square().matrix().asDiagonal();
 
-    qref.setIdentity();
+    qref.setIdentity(); // 1,0,0,0
     x.setZero();
     P.setZero();
     P.block<3, 3>(0, 0) = Pq0 * Eigen::Matrix3f::Identity();
@@ -95,6 +95,58 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
 }
 
 
+void QuaternionMEKF::measurement_update_partial(
+    Eigen::Matrix<float, 3, 1> const& meas,
+    Eigen::Ref<Eigen::Matrix<float, 3, 1> const> const& vhat,
+    Eigen::Ref<Eigen::Matrix<float, 3, 3> const> const& Rm)
+{
+    // Predicted measurement Jacobian
+    Eigen::Matrix<float, 3, 3> const C1 = skew_symmetric_matrix(vhat);
+
+    Eigen::Matrix<float, 3, 6> C;
+    
+    C << C1, Eigen::Matrix<float, 3, 3>::Zero();
+    
+   
+
+    // Innovation
+    Eigen::Matrix<float, 3, 1> const inno = meas - vhat;
+
+    // Innovation covariance
+    Eigen::Matrix<float, 3, 3> const s = C * P * C.transpose() + Rm;
+
+    // K = P * C.T * s^-1
+    Eigen::FullPivLU<Eigen::Matrix<float, 3, 3>> lu(s);
+    if (lu.isInvertible())
+    {
+        Eigen::Matrix<float, 6, 3> const K = P * C.transpose() * lu.inverse();
+
+        // State update
+        x += K * inno;
+
+        // Joseph form covariance update
+        Eigen::Matrix<float, 6, 6> const temp =
+            Eigen::Matrix<float, 6, 6>::Identity() - K * C;
+        P = temp * P * temp.transpose() + K * Rm * K.transpose();
+
+        // Apply correction to reference quaternion (small-angle approx)
+        Eigen::Quaternion<float> corr(
+            1.0f,
+            0.5f * x(0),
+            0.5f * x(1),
+            0.5f * x(2));
+        corr.normalize();
+        qref = qref * corr;
+
+        // Reset attitude error states
+        x(0) = 0.0f;
+        x(1) = 0.0f;
+        x(2) = 0.0f;
+    }
+}
+
+
+
 Eigen::Matrix<float, 4, 1> QuaternionMEKF::quaternion() 
 {
     return qref.coeffs();
@@ -136,23 +188,21 @@ Eigen::Matrix<float, 3, 1> QuaternionMEKF::magnetometer_measurement_func() const
 
 Eigen::Matrix<float, 6, 6> QuaternionMEKF::initialize_Q(Eigen::Matrix<float, 3, 1> sigma_g)
 {
-    Eigen::Matrix<float, 6, 6> R =
-        (Eigen::Matrix<float, 6, 1>() << sigma_g.array().square().matrix(),
-         1e-12,
-         1e-12,
-         1e-12)
-            .finished()
-            .asDiagonal();
+    Eigen::Matrix<float, 6, 6> Q = Eigen::Matrix<float, 6, 6>::Zero();
+    Q.block<3,3>(0,0) = sigma_g.array().square().matrix().asDiagonal();
+    Q.block<3,3>(3,3) = 1e-12 * Eigen::Matrix3f::Identity();
+    return Q;
 
-    return R;
+
 }
 
 
 void QuaternionMEKF::initialize_from_acc_mag(Eigen::Matrix<float, 3, 1> const &acc, Eigen::Matrix<float, 3, 1> const &mag)
 {
     float const anorm = acc.norm();
-    v1ref << 0, 0, -anorm;
+    v1ref << anorm, 0, 0;
 
+    
     Eigen::Matrix<float, 3, 1> const acc_normalized = acc / anorm;
     Eigen::Matrix<float, 3, 1> const mag_normalized = mag.normalized();
 
@@ -173,4 +223,32 @@ void QuaternionMEKF::initialize_from_acc_mag(Eigen::Matrix<float, 3, 1> const &a
 Eigen::Matrix<float, 3, 1> QuaternionMEKF::gyroscope_bias() 
 {
     return x.tail(3);
+}
+
+
+
+Eigen::Matrix<float, 3, 1> QuaternionMEKF::quatToEuler(const Eigen::Matrix<float,4,1> & q)
+{
+
+
+    double w = q[0];
+    double x = q[1];
+    double y = q[2];
+    double z = q[3];
+
+    double sinr_cosp = 2.0 * (w*x + y*z);
+    double cosr_cosp = 1.0 - 2.0 * (x*x + y*y);
+    double roll = std::atan2(sinr_cosp, cosr_cosp);
+
+    double sinp = 2.0 * (w*y - z*x);
+    double pitch;
+    if (std::abs(sinp) >= 1)
+        pitch = std::copysign(M_PI/2, sinp); 
+    else
+        pitch = std::asin(sinp);
+
+    double siny_cosp = 2.0 * (w*z + x*y);
+    double cosy_cosp = 1.0 - 2.0 * (y*y + z*z);
+    double yaw = std::atan2(siny_cosp, cosy_cosp);
+    return Eigen::Matrix<float, 3, 1>(roll, pitch, yaw);
 }
