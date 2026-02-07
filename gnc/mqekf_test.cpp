@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
             std::vector<double> accel_scaled = {
                 accel_sample[0] *1,
                 accel_sample[1] *1 ,
-                accel_sample[2] *1};
+                accel_sample[2] *-1};
             accel_pull.push_back(accel_scaled);
             gyro_pull.push_back(gyro_sample);
             mag_pull.push_back(mag_sample);
