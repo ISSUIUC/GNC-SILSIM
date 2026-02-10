@@ -6,7 +6,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-INPUT_FILE="data/MIDAS Trimmed (AL0, CSV).csv"
+INPUT_FILE="data/MIDAS Trimmed (AL2, CSV).csv"
 OUTPUT_FILE="output/results.csv"
 PLOT_RESULTS=true
 STOP_STATE="STATE_LANDED"
@@ -125,8 +125,8 @@ echo ""
 
 if [ "$PLOT_RESULTS" = true ]; then
     echo -e "${YELLOW}Step 3: Plotting results...${NC}"
-    if [ -f "plotter/plot_results.py" ]; then
-        python3 plotter/plot_results.py "$OUTPUT_FILE"
+    if [ -f "plotters/plot_results.py" ]; then
+        python3 plotters/plot_results.py "$OUTPUT_FILE"
         if [ $? -ne 0 ]; then
             echo -e "${RED}Plotting failed!${NC}"
             echo "You can still view the results in: $OUTPUT_FILE"
@@ -134,7 +134,7 @@ if [ "$PLOT_RESULTS" = true ]; then
             echo -e "${GREEN}Plots generated successfully!${NC}"
         fi
     else
-        echo -e "${RED}Error: plotter/plot_results.py not found!${NC}"
+        echo -e "${RED}Error: plotters/plot_results.py not found!${NC}"
         echo "Results are available in: $OUTPUT_FILE"
     fi
 else

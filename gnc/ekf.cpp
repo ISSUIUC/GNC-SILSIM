@@ -58,8 +58,8 @@ void EKF::initialize(RocketSystems *args)
     P_k.block<2, 2>(4, 4) = Eigen::Matrix2f::Identity() * 1e-2f; // z block (pos,vel)
 
     // set Measurement Noise Matrix
-    R(0, 0) = 1.9;  // barometer noise
-    R(1, 1) = 4.0f;  // GPS altitude noise (lower trust)
+    R(0, 0) = 1.9f;  // barometer noise
+    R(1, 1) = 9.0f;  // GPS altitude noise (lower trust)
     R(2, 2) = 3.0f; // GPS east noise 
     R(3, 3) = 3.0f; // GPS north noise 
 }
@@ -81,8 +81,13 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm, Acceleration 
     sensor_accel_global_g(0, 0) = acceleration.ax + 0.045f;
     sensor_accel_global_g(1, 0) = acceleration.ay - 0.065f;
     sensor_accel_global_g(2, 0) = acceleration.az - 0.06f;
+    // Rotate body-frame accel to global; BodyToGlobal outputs (North, East, Down), state is (Up, East, North)
     // euler_t angles_rad = orientation.getEuler();
     // BodyToGlobal(angles_rad, sensor_accel_global_g);
+    // float north = sensor_accel_global_g(0, 0), east = sensor_accel_global_g(1, 0), down = sensor_accel_global_g(2, 0);
+    // sensor_accel_global_g(0, 0) = -down;  // up
+    // sensor_accel_global_g(1, 0) = east;
+    // sensor_accel_global_g(2, 0) = north;
     // Do not apply gravity if on pad
     float g_ms2 = (fsm > FSMState::STATE_IDLE) ? gravity_ms2 : 0.0f;
     u_control(0, 0) = sensor_accel_global_g(0, 0) * g_ms2;
@@ -181,34 +186,6 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
         P_k = (identity - K * H_baro) * P_priori;
     }
 
-    bool is_landed = (FSM_state == FSMState::STATE_LANDED);
-    if (is_landed)
-    {
-        if (was_landed_last)
-        {
-            landed_state_duration += s_dt;  // Accumulate time in LANDED state
-        }
-        else
-        {
-            landed_state_duration = s_dt;  // Reset timer
-        }
-        
-        // Only reset velocities if we've been landed for at least 0.5 seconds
-        if (landed_state_duration >= 0.5f)
-        {
-            x_k(3, 0) = 0.0f;  // velocity y (vy) = 0 when landed
-            x_k(5, 0) = 0.0f;  // velocity z (vz) = 0 when landed
-        }
-    }
-    else
-    {
-        // Negate velocity z if it's negative (so negative becomes positive)
-        if (x_k(5, 0) < 0)  // velocity z (vz)
-        {
-            x_k(5, 0) = -x_k(5, 0);  // Negate negative velocity z to make it positive
-        }
-    }
-
     // Update output state structure
     kalman_state.state_est_pos_x = x_k(0, 0);
     kalman_state.state_est_vel_x = x_k(1, 0);
@@ -236,23 +213,16 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
  */
 void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState FSM_state, GPS &gps)
 {
-
-    if (FSM_state >= FSMState::STATE_IDLE) //
+    if (FSM_state >= FSMState::STATE_IDLE)
     {
         if (FSM_state != last_fsm)
         {
             stage_timestamp = 0;
             last_fsm = FSM_state;
-            // Reset landed state tracking when FSM changes
-            if (FSM_state != FSMState::STATE_LANDED)
-            {
-                landed_state_duration = 0.0f;
-                was_landed_last = false;
-            }
         }
         stage_timestamp += dt;
         s_dt = dt;  // Store dt for use in update
-        
+
         setQ(dt, sd);
         priori(dt, orientation, FSM_state, acceleration);
         update(barometer, acceleration, orientation, FSM_state, gps);
@@ -298,8 +268,8 @@ void EKF::setState(KalmanState state)
  */
 void EKF::setQ(float dt, float sd)
 {
-    // discrete-time integrated acceleration noise
-    float sigma_a = 0.2f; 
+    // continuous acceleration noise
+    float sigma_a = 0.2f;
     Q.setZero();
     // X axis
     Q(0,0) = pow(dt,4)/4.0f * sigma_a*sigma_a;
@@ -311,7 +281,7 @@ void EKF::setQ(float dt, float sd)
     Q(2,3) = pow(dt,3)/2.0f * sigma_a*sigma_a;
     Q(3,2) = Q(2,3);
     Q(3,3) = pow(dt,2) * sigma_a*sigma_a;
-    // Z axis
+    // Z axis 
     Q(4,4) = pow(dt,4)/4.0f * sigma_a*sigma_a;
     Q(4,5) = pow(dt,3)/2.0f * sigma_a*sigma_a;
     Q(5,4) = Q(4,5);
