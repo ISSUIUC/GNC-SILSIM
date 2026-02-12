@@ -1,0 +1,5 @@
+serial_replay/*
+!serial_replay/.gitkeep
+tiles/*
+!tiles/.gitkeep
+favicon.ico

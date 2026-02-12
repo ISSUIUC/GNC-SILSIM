@@ -1,0 +1,53 @@
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    font-family: monospace;
+}
+#cesiumContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+#controls {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 10px;
+    color: white;
+    z-index: 100;
+}
+#trackButtons {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+#gpsOverlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 10px;
+    border-radius: 100;
+    z-index: 100;
+}
+.stage {
+    margin-bottom: 5px;
+    display: flex;
+    gap: 8px;
+}
+.stage-name {
+    font-weight: bold;
+    margin-right: 5px;
+    min-width: 80px;
+}

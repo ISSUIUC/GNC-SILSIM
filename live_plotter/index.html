@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Live Plotter</title>
+        <script src="./Cesium/Cesium.js"></script>
+        <link href="./Cesium/Widgets/widgets.css" rel="stylesheet">
+        <link href="styles.css" rel="stylesheet">
+    </head>
+    <body>
+        <!-- Cesium Container -->
+        <div id="cesiumContainer"></div>
+
+        <!-- Cesium View Sliders -->
+        <div id="controls">
+            <label>Heading: <span id="headingValue">0</span>°</label><br>
+            <input type="range" id="headingSlider" min="0" max="360" value="0"><br>
+            <label>Pitch: <span id="pitchValue">-45</span>°</label><br>
+            <input type="range" id="pitchSlider" min="-90" max="0" value="-45">
+        </div>
+
+        <!-- Tracking Buttons -->
+        <div id="trackButtons">
+            <button id="stopTracking">Stop Tracking</button>
+            <button data-stage="0">Track Booster</button>
+            <button data-stage="1">Track Sustainer</button>
+        </div>
+        
+        <!-- GPS overlay -->
+        <div id="gpsOverlay">
+            <div class="stage">
+                <span class="stage-name">Booster:</span>
+                <span id="stage1_gps">Waiting...</span>
+            </div>
+            <div class="stage">
+                <span class="stage-name">Sustainer:</span>
+                <span id="stage2_gps">Waiting...</span>
+            </div>
+        </div>
+
+        <script src="main.js"></script>
+    </body>
+</html>
