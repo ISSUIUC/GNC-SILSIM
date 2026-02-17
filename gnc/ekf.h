@@ -72,6 +72,7 @@ private:
     float gps_longitude_original = 0.0f;
     float gps_latitude_last = 0.0f;
     float gps_longitude_last = 0.0f;
+    void reset(Barometer &barometer);
 };
 
 

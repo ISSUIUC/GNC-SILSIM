@@ -107,6 +107,9 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm, Acceleration 
  */
 void EKF::update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState FSM_state, GPS &gps)
 {
+    if(acceleration.ax > max_acceleration_ax || acceleration.ay > max_acceleration_ay || acceleration.az > max_acceleration_az) return;
+    if(orientation.roll > max_orientation_roll || orientation.yaw > max_orientation_yaw  || orientation.pitch > max_orientation_pitch) return;
+    
     // if on pad take last 10 barometer measurements for init state
     if (FSM_state == FSMState::STATE_IDLE)
     {
@@ -226,8 +229,47 @@ void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration accelerati
         setQ(dt, sd);
         priori(dt, orientation, FSM_state, acceleration);
         update(barometer, acceleration, orientation, FSM_state, gps);
+
+        if(this->state.velocity.vx > max_velocity_x || this->state.velocity.vy > max_velocity_y || this->state.velocity.vz > max_velocity_z) reset(barometer);    
     }
 }
+
+
+void EKF::reset(Barometer &barometer)
+{
+    // Orientation orientation = args->rocket_data.orientation.getRecentUnsync();
+    float sum = 0;
+
+    for (int i = 0; i < 30; i++) sum += barometer.altitude;
+
+    // set x_k - 6 states: [x, vx, y, vy, z, vz]
+    x_k.setZero();
+    x_k(0, 0) = sum / 30;  // initial altitude (x position)
+    x_k(2, 0) = 0;  // y position
+    x_k(4, 0) = 0;  // z position
+
+    F_mat.setZero(); // Initialize with zeros
+    B_mat.setZero(); // Initialize control input matrix
+
+    setQ(s_dt, spectral_density_);
+    H.setZero();
+    H(0, 0) = 1;  // barometer measures x position (altitude)
+    H(1, 0) = 1;  // GPS measures x position (altitude)
+    H(2, 2) = 1;  // GPS measures y position (east)
+    H(3, 4) = 1;  // GPS measures z position (north)
+
+    P_k.setZero();
+    P_k.block<2, 2>(0, 0) = Eigen::Matrix2f::Identity() * 1e-2f; // x block (pos,vel)
+    P_k.block<2, 2>(2, 2) = Eigen::Matrix2f::Identity() * 1e-2f; // y block (pos,vel)
+    P_k.block<2, 2>(4, 4) = Eigen::Matrix2f::Identity() * 1e-2f; // z block (pos,vel)
+
+    // set Measurement Noise Matrix
+    R(0, 0) = 1.9;  // barometer noise
+    R(1, 1) = 4.0f;  // GPS altitude noise (lower trust)
+    R(2, 2) = 3.0f; // GPS east noise 
+    R(3, 3) = 3.0f; // GPS north noise 
+}
+
 
 /**
  * @brief Getter for state X
