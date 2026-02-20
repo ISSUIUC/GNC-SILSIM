@@ -127,6 +127,7 @@ int main(int argc, char *argv[])
 
         mekf.time_update(gyr, 0.01f);
         mekf.measurement_update(acc, mag);
+        mekf.calculate_tilt();
         quat = mekf.quaternion();
 
         orientation = mekf.quatToEuler(quat);

@@ -1,4 +1,5 @@
 #include "mqekf.h"
+#include <iostream>
 
 QuaternionMEKF::QuaternionMEKF(
     const Eigen::Matrix<float, 3, 1> &sigma_a,
@@ -40,6 +41,41 @@ void QuaternionMEKF::time_update(Eigen::Matrix<float, 3, 1> const &gyr, float Ts
 }
 
 
+void QuaternionMEKF::calculate_tilt()
+{
+
+    const float alpha = 0.98; // Higher values dampen out current measurements --> reduce peaks
+
+    // The guess & check method!
+    // Quat --> euler --> rotation matrix --> reference&cur vector --> dot product for angle!
+
+    Eigen::Quaternion<float>
+        ref = Eigen::Quaternionf(1, 0, 0, 0);
+
+    Eigen::Quaternion<float> rotated = qref * ref * qref.conjugate();
+
+    Eigen::Matrix<float, 1, 3> reference_vector = {1, 0, 0};
+    Eigen::Matrix<float, 1, 3> rotated_vector = {rotated.x(), rotated.y(), rotated.z()};
+
+    float dot = rotated_vector.dot(reference_vector);
+    float cur_mag = rotated_vector.norm();
+    float ref_mag = reference_vector.norm();
+
+    float tilt = 0;
+    if (cur_mag != 0 && ref_mag != 0)
+    {
+        tilt = acos(dot / (cur_mag * ref_mag));
+    }
+
+    const float gain = 0.2;
+    // Arthur's Comp Filter
+    // float filtered_tilt = gain * tilt + (1 - gain) * prev_tilt;
+    // prev_tilt = filtered_tilt;
+    
+
+    std::cout << "Tilt: " <<tilt <<std::endl;
+    // Serial.println(filtered_tilt * (180/3.14f));
+}
 
 void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, Eigen::Matrix<float, 3, 1> const &mag)
 {

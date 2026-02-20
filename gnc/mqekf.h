@@ -26,6 +26,7 @@ public:
     Eigen::Matrix<float, 3, 3> Racc, Rmag;
 
     Eigen::Matrix<float, 3, 1> quatToEuler(const Eigen::Matrix<float,4,1> & q);
+    void calculate_tilt();
 
 
 private:
