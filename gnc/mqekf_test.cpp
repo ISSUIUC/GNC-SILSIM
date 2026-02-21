@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
     }
 
     int n = accel_pull.size();
-    outfile << "timestamp,quaternion_w,quaternion_x,quaternion_y,quaternion_z,highg.ax,highg.ay,highg.az,barometer.altitude,gps.altitude,gps.latitude,gps.longitude,orientation.roll,orientation.pitch,orientation.yaw,fsm,\n";
+    outfile << "timestamp,quaternion_w,quaternion_x,quaternion_y,quaternion_z,highg.ax,highg.ay,highg.az,barometer.altitude,gps.altitude,gps.latitude,gps.longitude,orientation.roll,orientation.pitch,orientation.yaw,fsm,orientation.tilt,\n";
     for (int i = 0; i < n; i++)
     {
         acc << accel_pull[i][0], accel_pull[i][1], accel_pull[i][2];
@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
 
         mekf.time_update(gyr, 0.01f);
         mekf.measurement_update(acc, mag);
-        mekf.calculate_tilt();
+        float tilt_calc = mekf.calculate_tilt();
         quat = mekf.quaternion();
 
         orientation = mekf.quatToEuler(quat);
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
                 << quat[0] << "," << quat[1] << "," << quat[2] << "," << quat[3] << ","
                 << acc[0] << "," << acc[1] << "," << acc[2] << ","
                 << alt << ","<< alt << ","
-                << (int)(gps[0]*1e7) << "," << (int)(gps[1]*1e7)<<"," << orientation[0]<< "," <<  orientation[1]<< "," << orientation[2]<< ","<<"STATE_COAST" <<"\n" ;
+                << (int)(gps[0]*1e7) << "," << (int)(gps[1]*1e7)<<"," << orientation[0]<< "," <<  orientation[1]<< "," << orientation[2]<< ","<<"STATE_COAST" <<  ","<<tilt_calc <<"\n" ;
         // mekf.measurement_update_acc_only(acc);
 
         if (i % 100 == 0)
