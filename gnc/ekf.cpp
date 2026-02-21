@@ -38,7 +38,7 @@ void EKF::initialize(RocketSystems *args)
 
     // set x_k - 6 states: [x, vx, y, vy, z, vz]
     x_k.setZero();
-    x_k(0, 0) = sum / 30;  // initial altitude (x position)
+    x_k(0, 0) = sum / 30;  // initial altitude (x position) 
     x_k(2, 0) = 0;  // y position
     x_k(4, 0) = 0;  // z position
 
@@ -58,7 +58,7 @@ void EKF::initialize(RocketSystems *args)
     P_k.block<2, 2>(4, 4) = Eigen::Matrix2f::Identity() * 1e-2f; // z block (pos,vel)
 
     // set Measurement Noise Matrix
-    R(0, 0) = 1.9f;  // barometer noise
+    R(0, 0) = 1.9f;  // barometer noise (UNITS???)
     R(1, 1) = 9.0f;  // GPS altitude noise (lower trust)
     R(2, 2) = 3.0f; // GPS east noise 
     R(3, 3) = 3.0f; // GPS north noise 
