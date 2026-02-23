@@ -1,10 +1,6 @@
 # Kalman Filters Sensor Documentation
 
-This is the README for the sensors used on MIDAS.
-
-The filter is stored in ekf.cpp and uses ekf.h as its header file. Both are implementations of the kalman_filter.h.
-
-States tracked: $[p_x,p_y,p_z,v_x,v_y,v_z]$. Position is meters, velocity is m/s. Acceleration is treated as a control input.
+This is the README for the sensors used on MIDAS and MIDAS Mini.
 
 ## MIDAS Sensors
 
@@ -60,17 +56,25 @@ https://www.oakchina.cn/wp-content/uploads/2022/05/BNO080_085-Datasheet.pdf
 
 ### GPS (name of sensor):
 
-- 
+-
 
 ### Accelerometer (LSM6DSV320X):
 
--
+https://www.st.com/resource/en/datasheet/lsm6dsv320x.pdf
+
+- Reference Frame: IMU reference frame is NOT rotated. It matches exactly with MIDAS Mini's reference frame so we keep it as such. Circle on MIDAS MINI is at bottom left.
+  ![LSM Reference](image-2.png)
+- Accel low-g Noise Density High Perfomance($\frac{ug}{\sqrt{Hz}}$): 60
+- Accel high-g Noise Density High Perfomance($\frac{ug}{\sqrt{Hz}}$): 1000
+- Accel low-g Noise Density Normal Perfomance($\frac{ug}{\sqrt{Hz}}$): 100
+- Accel RMS Noise Low Power Mode 1,2,3 (mg RMS): 2.7, 2.1, 1.5
 
 ### Magnetometer (MMC5983MA):
 
 -
 
 ### Barometer (MS5611):
+
 https://www.te.com/commerce/DocumentDelivery/DDEController?Action=srchrtrv&DocNm=MS5611-01BA03&DocType=Data+Sheet&DocLang=English
 
 - Units: converted to meters with altitude function
