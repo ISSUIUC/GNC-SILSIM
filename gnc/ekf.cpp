@@ -57,7 +57,7 @@ void EKF::initialize(RocketSystems *args)
     P_k.block<2, 2>(4, 4) = Eigen::Matrix2f::Identity() * 1e-2f; // z block (pos,vel)
 
     // set Measurement Noise Matrix
-    R(0, 0) = 0.1;  // barometer noise (m)
+    R(0, 0) = 0.1f;  // barometer noise (m)
     R(1, 1) = 1.5f; // GPS altitude noise (m)
     R(2, 2) = 0.3f; // GPS east noise (deg)
     R(3, 3) = 0.3f; // GPS north noise (deg)
