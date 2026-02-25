@@ -43,11 +43,6 @@ private:
     float s_dt = 0.05f;
     float spectral_density_ = 13.0f;
     float kalman_apo = 0;
-    float Ca = 0;
-    float Cn = 0;
-    float Wind_alpha = 0.85f;
-    float Cp = 0;
-    float curr_mass_kg = mass_full; //(kg) Sustainer + Booster, but value changes over time.
     std::vector<float> starting_gps;    // latitude, longitude, altitude
     std::vector<float> starting_ecef;   // x, y, z
 

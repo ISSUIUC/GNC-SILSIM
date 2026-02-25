@@ -62,7 +62,7 @@ $$F = \begin{bmatrix}
 
 
 ### $B$ Control matrix (6 x 3)
-This matrix transitions the Kalman state in between timesteps using the kinematics equations, focusing on control input acceleration.
+This matrix uses acceleration as the "control input" to affect the position and velocity for the future states. 
 
 $$x_{i+1} = x_i + v_i*dt +\frac{1}{2}a_i(dt)^2 $$
 $$v_{i+1} = v_i +a_i*dt $$
@@ -81,3 +81,4 @@ dt & 0 & 0\\
 - F_mat(0, 1) = dt; // x += vx * dt
 - F_mat(2, 3) = dt; // y += vy * dt
 - F_mat(4, 5) = dt; // z += vz * dt
+
