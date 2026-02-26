@@ -167,7 +167,7 @@ def update(i):
 
 # Animate
 ani = FuncAnimation(fig, update, frames=len(quats), interval=50, blit=False)
-ani.save('rocket_animation.mp4', writer='ffmpeg', fps=20, dpi=200)
+#ani.save('rocket_animation.mp4', writer='ffmpeg', fps=20, dpi=200)
 
 plt.tight_layout()
-# plt.show()
+plt.show()
