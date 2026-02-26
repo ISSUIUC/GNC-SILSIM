@@ -108,12 +108,14 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
     // x * A = b
     // Which can be solved with the code below
     Eigen::FullPivLU<Eigen::Matrix<float, 6, 6>> lu(s); //  LU decomposition of s
-    if (lu.isInvertible())
+    //std::cout << "det(s): " << s.determinant() << std::endl;
+    //std::cout << "inversion " << lu.isInvertible() << std::endl;
+    if (lu.determinant() != 0)
     {
         Eigen::Matrix<float, 6, 6> const K = P * C.transpose() * lu.inverse(); // gain
 
         x += K * inno; // applying correction???
-
+        //std::cout << "K * inno: " << K * inno << std::endl;
         // Joseph form of covariance measurement update
         Eigen::Matrix<float, 6, 6> const temp = Eigen::Matrix<float, 6, 6>::Identity() - K * C;
         P = temp * P * temp.transpose() + K * R * K.transpose(); // covariance update???
