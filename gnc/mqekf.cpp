@@ -12,6 +12,9 @@ QuaternionMEKF::QuaternionMEKF(
     float Pq0 = 1e-6;
     float Pb0 = 1e-4;
     Q = initialize_Q(sigma_g);
+    sigma_a_ = sigma_a;
+    sigma_g_ = sigma_g;
+    sigma_m_ = sigma_m;
 
     Eigen::Matrix<float, 6, 1> sigmas;
     sigmas << sigma_a, sigma_m;
@@ -84,6 +87,15 @@ double QuaternionMEKF::calculate_tilt()
 void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, Eigen::Matrix<float, 3, 1> const &mag)
 {
     // Predicted measurements
+
+    if (acc(0) < 0 ) // Check if the norm of the accelerometer measurement is in boost
+    {
+       Eigen::Matrix<float, 3, 3> Rm = sigma_m_.array().square().matrix().asDiagonal(); 
+       measurement_update_partial(mag, magnetometer_measurement_func(), Rm);
+       return; 
+    }
+
+
     Eigen::Matrix<float, 3, 1> const v1hat = accelerometer_measurement_func();
     Eigen::Matrix<float, 3, 1> const v2hat = magnetometer_measurement_func();
 

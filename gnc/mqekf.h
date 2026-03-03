@@ -53,6 +53,9 @@ private:
     Eigen::Matrix<float, 3, 1> magnetometer_measurement_func() const;
 
     static Eigen::Matrix<float, 6, 6> initialize_Q(Eigen::Matrix<float, 3, 1> sigma_g);
+    Eigen::Matrix<float,3,1> sigma_a_;
+    Eigen::Matrix<float,3,1> sigma_g_;
+    Eigen::Matrix<float,3,1> sigma_m_;
 };
 
 extern QuaternionMEKF qmekf;
