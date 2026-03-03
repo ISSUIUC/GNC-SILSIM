@@ -22,13 +22,14 @@ int main(int argc, char *argv[])
     Eigen::Matrix<float, 3, 1> sigma_m = {0.4e-4 / sqrt(3), 0.4e-4 / sqrt(3), 0.4e-4 / sqrt(3)};                                                 // 0.4 mG -> T, it is 0.4 total so we divide by sqrt3
 
     //sigma_a = Eigen::Matrix<float, 3, 1>::Constant(0.05f);
-    sigma_m = Eigen::Matrix<float, 3, 1>::Constant(0.05f);
+    //sigma_m = Eigen::Matrix<float, 3, 1>::Constant(0.05f);
 
 
     QuaternionMEKF mekf(sigma_a, sigma_g, sigma_m);
 
-    Eigen::Matrix<float, 3, 1> acc0 = {9.81, 0, 0};         // Factored in
-    Eigen::Matrix<float, 3, 1> mag0 = {-0.34, -0.01, 0.75}; // Factored in ??
+    Eigen::Matrix<float, 3, 1> acc0 = {9.81, 0, 0 };         // Factored in
+    Eigen::Matrix<float, 3, 1> mag0 = {0.34, -0.01, -0.75}; // Factored in ??
+    //Eigen::Matrix<float, 3, 1> mag0 = {-0.75, -0.34, -0.01}; // Factored in ??
 
     mekf.initialize_from_acc_mag(acc0, mag0);
     Eigen::Matrix<float, 4, 1> quat = mekf.quaternion();
@@ -76,13 +77,15 @@ int main(int argc, char *argv[])
         // Extract the sensor values (columns 16-24)
         if (row.size() > 24)
         {
-            // std::vector<double> accel_sample = {std::stod(row[16]), std::stod(row[17]), std::stod(row[18])};
-            // std::vector<double> gyro_sample = {std::stod(row[19]), std::stod(row[20]), std::stod(row[21])};
-            // std::vector<double> mag_sample = {std::stod(row[22]), std::stod(row[23]), std::stod(row[24])};
-
             std::vector<double> accel_sample = {std::stod(row[16]), std::stod(row[17]), std::stod(row[18])};
-            std::vector<double> gyro_sample = {std::stod(row[19]), std::stod(row[20]), std::stod(row[21])};
-            std::vector<double> mag_sample = {std::stod(row[22]), std::stod(row[23]), std::stod(row[24])};
+            std::vector<double> gyro_sample = {-std::stod(row[19]), std::stod(row[20]), -std::stod(row[21])};
+            std::vector<double> mag_sample = {-std::stod(row[22]), std::stod(row[23]), -std::stod(row[24])};
+
+            // std::vector<double> accel_sample = {std::stod(row[18]), std::stod(row[17]), -std::stod(row[16])};
+            // std::vector<double> gyro_sample = {std::stod(row[19]), std::stod(row[20]), std::stod(row[21])};
+            // //std::vector<double> gyro_sample = {std::stod(row[20]), std::stod(row[19]), std::stod(row[21])};            
+            // std::vector<double> mag_sample = {std::stod(row[22]), std::stod(row[23]), std::stod(row[24])};
+            // std::vector<double> mag_sample = {std::stod(row[22]), std::stod(row[23]), std::stod(row[24])};            
             std::vector<double> gps_sample = {std::stod(row[34]), std::stod(row[35])};
             std::vector<double> altitude_sample = {std::stod(row[9])};
             std::vector<double> time_sample = {std::stod(row[4])};
@@ -136,7 +139,8 @@ int main(int argc, char *argv[])
         mekf.time_update(gyr, 0.01f);
         //mag << 0, 0, 0;
         mekf.measurement_update(acc, mag);
-
+        //Eigen::Matrix<float, 3, 3> Ra = sigma_a.array().square().matrix().asDiagonal();
+        //mekf.measurement_update_partial(acc, mekf.get_acc_prediction(), Ra);
         //mekf.measurement_update(acc, mag); 
         float tilt_calc = mekf.calculate_tilt();
         quat = mekf.quaternion();

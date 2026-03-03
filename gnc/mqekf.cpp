@@ -10,7 +10,7 @@ QuaternionMEKF::QuaternionMEKF(
     const Eigen::Matrix<float, 3, 1> &sigma_m)
 {
     float Pq0 = 1e-6;
-    float Pb0 = 1e-1;
+    float Pb0 = 1e-4;
     Q = initialize_Q(sigma_g);
 
     Eigen::Matrix<float, 6, 1> sigmas;
@@ -71,7 +71,7 @@ double QuaternionMEKF::calculate_tilt()
     // Arthur's Comp Filter
     // float filtered_tilt = gain * tilt + (1 - gain) * prev_tilt;
     // prev_tilt = filtered_tilt;
-    std::cout << "Tilt: " <<(tilt)*180/pi <<std::endl;
+    //std::cout << "Tilt: " <<(tilt)*180/pi <<std::endl;
     
     return (tilt)*180/pi;
 
@@ -117,9 +117,10 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
     //std::cout << "inversion " << lu.isInvertible() << std::endl;
     if (lu.determinant() != 0)
     {
-        Eigen::Matrix<float, 6, 6> const K = s.ldlt().solve(C * P).transpose(); // gain
+        Eigen::Matrix<float, 6, 6> const K = P * C.transpose() * lu.inverse(); // gain
         
         x += K * inno; // applying correction???
+        std::cout << "bias: " << x(3)  << " " << x(4) << " " << x(5) << std::endl;
         //std::cout << "inno: " << inno.transpose() << std::endl;
         //std::cout << "K*inno: " << (K * inno).transpose() << std::endl;
         //std::cout << "K * inno: " << K * inno << std::endl;
@@ -135,6 +136,7 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
         x(0) = 0;
         x(1) = 0;
         x(2) = 0;
+
     }
 }
 
@@ -163,7 +165,7 @@ void QuaternionMEKF::measurement_update_partial(
     Eigen::FullPivLU<Eigen::Matrix<float, 3, 3>> lu(s);
     if (lu.determinant() != 0 )
     {
-        Eigen::Matrix<float, 6, 3> const K =  s.ldlt().solve(C * P).transpose(); // P * C.transpose() * lu.inverse();
+        Eigen::Matrix<float, 6, 3> const K =  P * C.transpose() * lu.inverse();
 
         // State update
         x += K * inno;

@@ -27,6 +27,7 @@ public:
 
     Eigen::Matrix<float, 3, 1> quatToEuler(const Eigen::Matrix<float,4,1> & q);
     double calculate_tilt();
+    Eigen::Matrix<float, 3, 1> get_acc_prediction() const {    return accelerometer_measurement_func();}
     
 
 private:
