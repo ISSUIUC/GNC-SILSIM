@@ -161,13 +161,14 @@ def update(i):
         rotated = (R @ fin.T).T
         poly.set_verts([rotated])
 
-    ax1.set_title(f"Time: {time_array[i]:.2f} s")
+    #ax1.set_title(f"Time: {time_array[i]:.2f} s")
+    print(f"Time: {time_array[i]:.2f} s")
     return lines_filtered + nose_polys + body_polys + fins_polys
 
 
 # Animate
-ani = FuncAnimation(fig, update, frames=len(quats), interval=50, blit=False)
-ani.save('rocket_animation.mp4', writer='ffmpeg', fps=20, dpi=200)
+ani = FuncAnimation(fig, update, frames=len(quats), blit=False, interval=0.00001)
+#ani.save('rocket_animation.mp4', writer='ffmpeg', fps=20, dpi=200)
 
 plt.tight_layout()
-# plt.show()
+plt.show()

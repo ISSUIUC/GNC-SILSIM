@@ -132,7 +132,7 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
         Eigen::Matrix<float, 6, 6> const K = P * C.transpose() * lu.inverse(); // gain
         
         x += K * inno; // applying correction???
-        //std::cout << "bias: " << x(3)  << " " << x(4) << " " << x(5) << std::endl;
+        std::cout << "bias: " << x(3)  << " " << x(4) << " " << x(5) << std::endl;
         //std::cout << "inno: " << inno.transpose() << std::endl;
         //std::cout << "K*inno: " << (K * inno).transpose() << std::endl;
         //std::cout << "K * inno: " << K * inno << std::endl;
