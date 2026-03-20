@@ -3,8 +3,7 @@
 #include "kalman_filter.h"
 #include "sensor_data.h"
 #include "Buffer.h" 
-#include "constants.h"
-#include "aero_coeff.h"
+#include "ekf_constants.h"
 #include "rotation.h"
 
 #define NUM_STATES 6  // [x, vx, y, vy, z, vz] - position and velocity only
@@ -43,11 +42,6 @@ private:
     float s_dt = 0.05f;
     float spectral_density_ = 13.0f;
     float kalman_apo = 0;
-    float Ca = 0;
-    float Cn = 0;
-    float Wind_alpha = 0.85f;
-    float Cp = 0;
-    float curr_mass_kg = mass_full; //(kg) Sustainer + Booster, but value changes over time.
     std::vector<float> starting_gps;    // latitude, longitude, altitude
     std::vector<float> starting_ecef;   // x, y, z
 

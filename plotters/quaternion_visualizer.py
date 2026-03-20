@@ -5,7 +5,7 @@ from scipy.spatial.transform import Rotation as R
 from matplotlib.animation import FuncAnimation
 
 # Load quaternion data
-df = pd.read_csv("./gnc/mqekf_quaternion_output.csv")
+df = pd.read_csv("./output/mqekf_quaternion_output.csv")
 
 # Extract quaternions (x, y, z, w)
 quaternions = np.array([
@@ -14,6 +14,16 @@ quaternions = np.array([
     df["quaternion_z"].values,
     df["quaternion_w"].values
 ]).T
+
+# file1 = r"../output/mqekf_quaternion_output.csv"
+# df = pd.read_csv(file1)
+# quats = df[["quaternion_w", "quaternion_x", "quaternion_y", "quaternion_z"]].to_numpy()
+# time_array = df["timestamp"].to_numpy()
+
+
+
+
+
 
 # Normalize quaternions
 quaternions /= np.linalg.norm(quaternions, axis=1)[:, None]

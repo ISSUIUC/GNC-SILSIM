@@ -8,7 +8,7 @@ REM ============================================================
 echo ------------------------------------------------------------
 echo Step 1: Navigate to the GNC folder
 echo ------------------------------------------------------------
-cd gnc
+cd gnc-midas
 if errorlevel 1 (
     echo [ERROR] Could not change to 'gnc' directory.
     pause
@@ -33,13 +33,13 @@ echo ------------------------------------------------------------
 echo Step 3: Run EKF on selected data file
 echo ------------------------------------------------------------
 cd ..
-set "DATA_FILE=./data/Midas_booster.csv"
+set "DATA_FILE=./data/Midas_Booster.csv"
 set "OUTPUT_FILE=./output/results.csv"
 
 echo Using data file: %DATA_FILE%
 echo Output will be saved to: %OUTPUT_FILE%
 
-gnc\main "%DATA_FILE%" "%OUTPUT_FILE%"
+gnc-midas\main "%DATA_FILE%" "%OUTPUT_FILE%"
 if errorlevel 1 (
     echo [ERROR] Failed to run EKF executable.
     pause
@@ -49,7 +49,7 @@ if errorlevel 1 (
 echo ------------------------------------------------------------
 echo Step 4: Generate plots
 echo ------------------------------------------------------------
-python ./plotter/plot_results.py
+python ./plotters/EKF_Sim_Results_Plotter.py
 if errorlevel 1 (
     echo [ERROR] Failed to generate plots. Check Python installation or script.
     pause

@@ -52,15 +52,15 @@ void EKF::initialize(RocketSystems *args)
     H(3, 4) = 1; // GPS measures z position (north)
 
     P_k.setZero();
-    P_k.block<2, 2>(0, 0) = Eigen::Matrix2f::Identity() * 1e-2f; // x block (pos,vel)
-    P_k.block<2, 2>(2, 2) = Eigen::Matrix2f::Identity() * 1e-2f; // y block (pos,vel)
-    P_k.block<2, 2>(4, 4) = Eigen::Matrix2f::Identity() * 1e-2f; // z block (pos,vel)
+    P_k.block<2, 2>(0, 0) = Eigen::Matrix2f::Identity() * process_noise_factor; // x block (pos,vel)
+    P_k.block<2, 2>(2, 2) = Eigen::Matrix2f::Identity() * process_noise_factor; // y block (pos,vel)
+    P_k.block<2, 2>(4, 4) = Eigen::Matrix2f::Identity() * process_noise_factor; // z block (pos,vel)
 
     // set Measurement Noise Matrix
-    R(0, 0) = 0.1;  // barometer noise (m)
-    R(1, 1) = 1.5f; // GPS altitude noise (m)
-    R(2, 2) = 0.3f; // GPS east noise (deg)
-    R(3, 3) = 0.3f; // GPS north noise (deg)
+    R(0, 0) = barometer_noise;  // barometer noise (m)
+    R(1, 1) = gps_noise_altitude; // GPS altitude noise (m)
+    R(2, 2) = gps_noise_east; // GPS east noise (deg)
+    R(3, 3) = gps_noise_north; // GPS north noise (deg)
 }
 
 /**
@@ -77,9 +77,9 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm, Acceleration 
     setB(dt);
     // Compute control input at current time step
     Eigen::Matrix<float, 3, 1> sensor_accel_global_g = Eigen::Matrix<float, 3, 1>::Zero();
-    sensor_accel_global_g(0, 0) = acceleration.ax + 0.045f;
-    sensor_accel_global_g(1, 0) = acceleration.ay - 0.065f;
-    sensor_accel_global_g(2, 0) = acceleration.az - 0.06f;
+    sensor_accel_global_g(0, 0) = acceleration.ax + accel_bias_x;
+    sensor_accel_global_g(1, 0) = acceleration.ay + accel_bias_y;
+    sensor_accel_global_g(2, 0) = acceleration.az + accel_bias_z;
     // Rotate body-frame accel to global; BodyToGlobal outputs (North, East, Down), state is (Up, East, North)
     // euler_t angles_rad = orientation.getEuler();
     // BodyToGlobal(angles_rad, sensor_accel_global_g);
@@ -268,7 +268,7 @@ void EKF::setState(KalmanState state)
 void EKF::setQ(float dt, float sd)
 {
     // continuous acceleration noise
-    float sigma_a = 0.2f;
+   
     Q.setZero();
     // X axis
     Q(0, 0) = pow(dt, 4) / 4.0f * sigma_a * sigma_a;
@@ -324,8 +324,8 @@ void EKF::reference_GPS(GPS &gps, FSMState fsm)
 
     if (fsm == FSMState::STATE_IDLE)
     {
-        gps_latitude_original = gps.latitude / 1e7;
-        gps_longitude_original = gps.longitude / 1e7;
+        gps_latitude_original = gps.latitude / 1e7; // int to float conversion 
+        gps_longitude_original = gps.longitude / 1e7; // int to float conversion 
         gps_latitude_last = gps_latitude_original;
         gps_longitude_last = gps_longitude_original;
     }

@@ -5,9 +5,7 @@
 #undef round
 #undef B1
 
-#include <Eigen/Eigen>
-// #include "sensor_data.h"
-// #include "systems.h"
+#include <../Eigen/Eigen>
 #include "sensor_data.h" // For sim 
 #include "systems.h" // for sim
 
