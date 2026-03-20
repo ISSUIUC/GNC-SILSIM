@@ -49,7 +49,7 @@ if errorlevel 1 (
 echo ------------------------------------------------------------
 echo Step 4: Generate plots
 echo ------------------------------------------------------------
-python ./plotters/plot_results.py
+python ./plotters/EKF_Sim_Results_Plotter.py
 if errorlevel 1 (
     echo [ERROR] Failed to generate plots. Check Python installation or script.
     pause

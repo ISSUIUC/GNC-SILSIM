@@ -1,18 +1,23 @@
 #include "mqekf.h"
 #include <iostream>
-#include <mqekf_constants.h>
+#include <constants.h>
+#include <thread>
+#include <chrono>
 
-QuaternionMEKF::QuaternionMEKF()
+QuaternionMEKF::QuaternionMEKF(
+    const Eigen::Matrix<float, 3, 1> &sigma_a,
+    const Eigen::Matrix<float, 3, 1> &sigma_g,
+    const Eigen::Matrix<float, 3, 1> &sigma_m)
 {
-   
+    float Pq0 = 1e-6;
+    float Pb0 = 1e-4;
     Q = initialize_Q(sigma_g);
-    Eigen::Matrix<float, 3, 1> sigma_a = {accel_noise_density_x * sqrt(100.0f) * 1e-6 * 9.81, accel_noise_density_y * sqrt(100.0f) * 1e-6 * 9.81, accel_noise_density_z * sqrt(100.0f) * 1e-6 * 9.81}; // ug/sqrt(Hz) *sqrt(hz). values are from datasheet
-    Eigen::Matrix<float, 3, 1> sigma_g = {gyro_RMS_noise* pi / 180,gyro_RMS_noise * pi / 180, gyro_RMS_noise * pi / 180};                                                 // 0.1 deg/s
-    Eigen::Matrix<float, 3, 1> sigma_m = {mag_noise*1e-4 / sqrt(3), mag_noise*1e-4 / sqrt(3), mag_noise*1e-4 / sqrt(3)};                                                 // 0.4 mG -> T, it is 0.4 total so we divide by sqrt3
-
+    sigma_a_ = sigma_a;
+    sigma_g_ = sigma_g;
+    sigma_m_ = sigma_m;
 
     Eigen::Matrix<float, 6, 1> sigmas;
-        sigmas << sigma_a, sigma_m;
+    sigmas << sigma_a, sigma_m;
     R = sigmas.array().square().matrix().asDiagonal();
 
     qref.setIdentity(); // 1,0,0,0
@@ -20,6 +25,7 @@ QuaternionMEKF::QuaternionMEKF()
     P.setZero();
     P.block<3, 3>(0, 0) = Pq0 * Eigen::Matrix3f::Identity();
     P.block<3, 3>(3, 3) = Pb0 * Eigen::Matrix3f::Identity();
+    
 }
 
 void QuaternionMEKF::time_update(Eigen::Matrix<float, 3, 1> const &gyr, float Ts)
@@ -63,10 +69,12 @@ double QuaternionMEKF::calculate_tilt()
         tilt = acos(dot / (cur_mag * ref_mag));
     }
 
+    // tilt -= 
+    const float gain = 0.2;
     // Arthur's Comp Filter
     // float filtered_tilt = gain * tilt + (1 - gain) * prev_tilt;
     // prev_tilt = filtered_tilt;
-    std::cout << "Tilt: " <<(tilt)*180/pi <<std::endl;
+    //std::cout << "Tilt: " <<(tilt)*180/pi <<std::endl;
     
     return (tilt)*180/pi;
 
@@ -74,9 +82,20 @@ double QuaternionMEKF::calculate_tilt()
     // Serial.println(filtered_tilt * (180/3.14f));
 }
 
+
+
 void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, Eigen::Matrix<float, 3, 1> const &mag)
 {
     // Predicted measurements
+
+    if (acc(0) < 0 ) // Check if the norm of the accelerometer measurement is in boost
+    {
+       Eigen::Matrix<float, 3, 3> Rm = sigma_m_.array().square().matrix().asDiagonal(); 
+       measurement_update_partial(mag, magnetometer_measurement_func(), Rm);
+       return; 
+    }
+
+
     Eigen::Matrix<float, 3, 1> const v1hat = accelerometer_measurement_func();
     Eigen::Matrix<float, 3, 1> const v2hat = magnetometer_measurement_func();
 
@@ -92,8 +111,8 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
         v2hat;
 
     Eigen::Matrix<float, 6, 1> y;
-    y << acc,
-        mag;
+    y << acc.normalized(),
+        mag.normalized();
 
     Eigen::Matrix<float, 6, 1> inno = y - yhat;
 
@@ -106,12 +125,17 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
     // x * A = b
     // Which can be solved with the code below
     Eigen::FullPivLU<Eigen::Matrix<float, 6, 6>> lu(s); //  LU decomposition of s
-    if (lu.determinant() != 0)                                 // change from invertible to allow tiny determinant to pass through 
+    //std::cout << "det(s): " << s.determinant() << std::endl;
+    //std::cout << "inversion " << lu.isInvertible() << std::endl;
+    if (lu.determinant() != 0)
     {
         Eigen::Matrix<float, 6, 6> const K = P * C.transpose() * lu.inverse(); // gain
-
+        
         x += K * inno; // applying correction???
-
+        //std::cout << "bias: " << x(3)  << " " << x(4) << " " << x(5) << std::endl;
+        //std::cout << "inno: " << inno.transpose() << std::endl;
+        //std::cout << "K*inno: " << (K * inno).transpose() << std::endl;
+        //std::cout << "K * inno: " << K * inno << std::endl;
         // Joseph form of covariance measurement update
         Eigen::Matrix<float, 6, 6> const temp = Eigen::Matrix<float, 6, 6>::Identity() - K * C;
         P = temp * P * temp.transpose() + K * R * K.transpose(); // covariance update???
@@ -124,6 +148,7 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
         x(0) = 0;
         x(1) = 0;
         x(2) = 0;
+
     }
 }
 
@@ -150,9 +175,9 @@ void QuaternionMEKF::measurement_update_partial(
 
     // K = P * C.T * s^-1
     Eigen::FullPivLU<Eigen::Matrix<float, 3, 3>> lu(s);
-        if (lu.isInvertible())                                 // change from invertible to allow tiny determinant to pass through 
+    if (lu.determinant() != 0 )
     {
-        Eigen::Matrix<float, 6, 3> const K = P * C.transpose() * lu.inverse();
+        Eigen::Matrix<float, 6, 3> const K =  P * C.transpose() * lu.inverse();
 
         // State update
         x += K * inno;
@@ -223,7 +248,7 @@ Eigen::Matrix<float, 6, 6> QuaternionMEKF::initialize_Q(Eigen::Matrix<float, 3, 
 {
     Eigen::Matrix<float, 6, 6> Q = Eigen::Matrix<float, 6, 6>::Zero();
     Q.block<3,3>(0,0) = sigma_g.array().square().matrix().asDiagonal();
-    Q.block<3,3>(3,3) = 1e-12 * Eigen::Matrix3f::Identity(); //why 1e-12
+    Q.block<3,3>(3,3) = 1e-12 * Eigen::Matrix3f::Identity();
     return Q;
 
 
@@ -233,7 +258,7 @@ Eigen::Matrix<float, 6, 6> QuaternionMEKF::initialize_Q(Eigen::Matrix<float, 3, 
 void QuaternionMEKF::initialize_from_acc_mag(Eigen::Matrix<float, 3, 1> const &acc, Eigen::Matrix<float, 3, 1> const &mag)
 {
     float const anorm = acc.norm();
-    v1ref << anorm, 0, 0;
+    v1ref << 1.0f, 0.0f, 0.0f;
 
     
     Eigen::Matrix<float, 3, 1> const acc_normalized = acc / anorm;
@@ -250,7 +275,13 @@ void QuaternionMEKF::initialize_from_acc_mag(Eigen::Matrix<float, 3, 1> const &a
     qref = R.transpose();
 
     // Reference magnetic field vector
-    v2ref = qref * mag;
+    v2ref = (qref * mag_normalized).normalized();
+    std::cout << "acc_n:  " << acc.normalized().transpose() << std::endl;
+    std::cout << "v1hat:  " << (qref.inverse() * v1ref).transpose() << std::endl;
+    std::cout << "mag_n:  " << mag.normalized().transpose() << std::endl;  
+    std::cout << "v2hat:  " << (qref.inverse() * v2ref).transpose() << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+
 }
 
 Eigen::Matrix<float, 3, 1> QuaternionMEKF::gyroscope_bias() 

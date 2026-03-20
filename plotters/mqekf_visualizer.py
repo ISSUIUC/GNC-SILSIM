@@ -133,7 +133,7 @@ fins_polys = [Poly3DCollection([fin], color="red") for fin in fins_vertices]
 
 for poly in nose_polys + body_polys + fins_polys:
     ax1.add_collection3d(poly)
-
+?
 
 # Animation update
 def update(i):

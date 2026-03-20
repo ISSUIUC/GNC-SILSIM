@@ -1,8 +1,10 @@
 #include "mqekf.h"
-#include <../Eigen/Eigen>
+#include <Eigen/Eigen>
 #include <iomanip>
 #include <iostream>
 #include <fstream>
+#include <thread>
+#include <chrono>
 using namespace Eigen;
 
 int main(int argc, char *argv[])
@@ -15,11 +17,19 @@ int main(int argc, char *argv[])
     }
 
     std::string input_file = argv[1];
-    
-    QuaternionMEKF mekf;
+    Eigen::Matrix<float, 3, 1> sigma_a = {160 * sqrt(100.0f) * 1e-6 * 9.81, 160 * sqrt(100.0f) * 1e-6 * 9.81, 190 * sqrt(100.0f) * 1e-6 * 9.81}; // ug/sqrt(Hz) *sqrt(hz). values are from datasheet
+    Eigen::Matrix<float, 3, 1> sigma_g = {0.1 * M_PI / 180, 0.1 * M_PI / 180, 0.1 * M_PI / 180};                                                 // 0.1 deg/s
+    Eigen::Matrix<float, 3, 1> sigma_m = {0.4e-4 / sqrt(3), 0.4e-4 / sqrt(3), 0.4e-4 / sqrt(3)};                                                 // 0.4 mG -> T, it is 0.4 total so we divide by sqrt3
 
-    Eigen::Matrix<float, 3, 1> acc0 = {9.81, 0, 0};         // Factored in
-    Eigen::Matrix<float, 3, 1> mag0 = {-0.34, -0.01, 0.75}; // these values are from a specific midas launch, but this should realistically be the first data point from the mag. 
+    //sigma_a = Eigen::Matrix<float, 3, 1>::Constant(0.05f);
+    //sigma_m = Eigen::Matrix<float, 3, 1>::Constant(0.05f);
+
+
+    QuaternionMEKF mekf(sigma_a, sigma_g, sigma_m);
+
+    Eigen::Matrix<float, 3, 1> acc0 = {9.81, 0, 0 };         // Factored in
+    Eigen::Matrix<float, 3, 1> mag0 = {0.34, -0.01, -0.75}; // Factored in ??
+    //Eigen::Matrix<float, 3, 1> mag0 = {-0.75, -0.34, -0.01}; // Factored in ??
 
     mekf.initialize_from_acc_mag(acc0, mag0);
     Eigen::Matrix<float, 4, 1> quat = mekf.quaternion();
@@ -67,13 +77,15 @@ int main(int argc, char *argv[])
         // Extract the sensor values (columns 16-24)
         if (row.size() > 24)
         {
-            // std::vector<double> accel_sample = {std::stod(row[16]), std::stod(row[17]), std::stod(row[18])};
-            // std::vector<double> gyro_sample = {std::stod(row[19]), std::stod(row[20]), std::stod(row[21])};
-            // std::vector<double> mag_sample = {std::stod(row[22]), std::stod(row[23]), std::stod(row[24])};
-
             std::vector<double> accel_sample = {std::stod(row[16]), std::stod(row[17]), std::stod(row[18])};
-            std::vector<double> gyro_sample = {std::stod(row[19]), std::stod(row[20]), std::stod(row[21])};
-            std::vector<double> mag_sample = {std::stod(row[24]), std::stod(row[25]), std::stod(row[26])};
+            std::vector<double> gyro_sample = {-std::stod(row[19]), std::stod(row[20]), -std::stod(row[21])};
+            std::vector<double> mag_sample = {-std::stod(row[22]), std::stod(row[23]), -std::stod(row[24])};
+
+            // std::vector<double> accel_sample = {std::stod(row[18]), std::stod(row[17]), -std::stod(row[16])};
+            // std::vector<double> gyro_sample = {std::stod(row[19]), std::stod(row[20]), std::stod(row[21])};
+            // //std::vector<double> gyro_sample = {std::stod(row[20]), std::stod(row[19]), std::stod(row[21])};            
+            // std::vector<double> mag_sample = {std::stod(row[22]), std::stod(row[23]), std::stod(row[24])};
+            // std::vector<double> mag_sample = {std::stod(row[22]), std::stod(row[23]), std::stod(row[24])};            
             std::vector<double> gps_sample = {std::stod(row[34]), std::stod(row[35])};
             std::vector<double> altitude_sample = {std::stod(row[9])};
             std::vector<double> time_sample = {std::stod(row[4])};
@@ -115,6 +127,8 @@ int main(int argc, char *argv[])
     outfile << "timestamp,quaternion_w,quaternion_x,quaternion_y,quaternion_z,highg.ax,highg.ay,highg.az,barometer.altitude,gps.altitude,gps.latitude,gps.longitude,orientation.roll,orientation.pitch,orientation.yaw,fsm,orientation.tilt,\n";
     for (int i = 0; i < n; i++)
     {
+
+       
         acc << accel_pull[i][0], accel_pull[i][1], accel_pull[i][2];
         gyr << gyro_pull[i][0] * M_PI / 180, gyro_pull[i][1] * M_PI / 180, gyro_pull[i][2] * M_PI / 180;
         mag << mag_pull[i][0], mag_pull[i][1], mag_pull[i][2];
@@ -123,7 +137,11 @@ int main(int argc, char *argv[])
         time = time_pull[i][0];
 
         mekf.time_update(gyr, 0.01f);
+        //mag << 0, 0, 0;
         mekf.measurement_update(acc, mag);
+        //Eigen::Matrix<float, 3, 3> Ra = sigma_a.array().square().matrix().asDiagonal();
+        //mekf.measurement_update_partial(acc, mekf.get_acc_prediction(), Ra);
+        //mekf.measurement_update(acc, mag); 
         float tilt_calc = mekf.calculate_tilt();
         quat = mekf.quaternion();
 
@@ -140,17 +158,18 @@ int main(int argc, char *argv[])
                 << alt << ","<< alt << ","
                 << (int)(gps[0]*1e7) << "," << (int)(gps[1]*1e7)<<"," << orientation[0]<< "," <<  orientation[1]<< "," << orientation[2]<< ","<<"STATE_COAST" <<  ","<<tilt_calc <<"\n" ;
         // mekf.measurement_update_acc_only(acc);
-        Eigen::Matrix<float, 3, 1> bias = mekf.gyroscope_bias();
-        std::cout <<"x: " << bias(0,0)<<"y: " << bias(1,0)<<"z: " << bias(2,0)<<std::endl;
 
         if (i % 100 == 0)
         { // Flush every 100 iterations
             outfile.flush();
         }
     }
+    std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+
 
     quat = mekf.quaternion();
 
-   
+    Eigen::Matrix<float, 3, 1> bias = mekf.gyroscope_bias();
+
     outfile.close();
 }

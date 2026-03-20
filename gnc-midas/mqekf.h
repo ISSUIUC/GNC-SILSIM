@@ -3,12 +3,14 @@
 #include "sensor_data.h" // for sim
 #include "Buffer.h"      // for sim
 
-#include <../Eigen/Eigen>
+#include <Eigen/Eigen>
 
 class QuaternionMEKF
 {
 public:
-    QuaternionMEKF();
+    QuaternionMEKF(const Eigen::Matrix<float, 3, 1> &sigma_a,
+                                   const Eigen::Matrix<float, 3, 1> &sigma_g,
+                                   const Eigen::Matrix<float, 3, 1> &sigma_m);
 
     void initialize_from_acc_mag(Eigen::Matrix<float, 3, 1> const &acc, Eigen::Matrix<float, 3, 1> const &mag);
     void time_update(Eigen::Matrix<float, 3, 1> const &gyr, float Ts);
@@ -25,6 +27,7 @@ public:
 
     Eigen::Matrix<float, 3, 1> quatToEuler(const Eigen::Matrix<float,4,1> & q);
     double calculate_tilt();
+    Eigen::Matrix<float, 3, 1> get_acc_prediction() const {    return accelerometer_measurement_func();}
     
 
 private:
@@ -45,15 +48,14 @@ private:
     Eigen::Matrix<float, 6, 6> R;
     Eigen::Matrix<float, 6, 6> Q;
 
-    Eigen::Matrix<float, 3, 1> sigma_a;
-    Eigen::Matrix<float, 3, 1> sigma_g;
-    Eigen::Matrix<float, 3, 1> sigma_m;
-
     void set_transition_matrix(const Eigen::Ref<const Eigen::Matrix<float, 3, 1>> &gyr, float Ts);
     Eigen::Matrix<float, 3, 3> skew_symmetric_matrix(const Eigen::Ref<const Eigen::Matrix<float, 3, 1>> &vec) const;
     Eigen::Matrix<float, 3, 1> magnetometer_measurement_func() const;
 
     static Eigen::Matrix<float, 6, 6> initialize_Q(Eigen::Matrix<float, 3, 1> sigma_g);
+    Eigen::Matrix<float,3,1> sigma_a_;
+    Eigen::Matrix<float,3,1> sigma_g_;
+    Eigen::Matrix<float,3,1> sigma_m_;
 };
 
 extern QuaternionMEKF qmekf;
