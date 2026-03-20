@@ -82,3 +82,6 @@ dt & 0 & 0\\
 - F_mat(2, 3) = dt; // y += vy * dt
 - F_mat(4, 5) = dt; // z += vz * dt
 
+
+### $Q$ Process Noise Matrix (9 x 9)
+This matrix represents the noise when processing data.

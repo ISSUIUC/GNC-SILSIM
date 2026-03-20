@@ -143,6 +143,8 @@ int main(int argc, char *argv[])
                 << alt << ","<< alt << ","
                 << (int)(gps[0]*1e7) << "," << (int)(gps[1]*1e7)<<"," << orientation[0]<< "," <<  orientation[1]<< "," << orientation[2]<< ","<<"STATE_COAST" <<  ","<<tilt_calc <<"\n" ;
         // mekf.measurement_update_acc_only(acc);
+        Eigen::Matrix<float, 3, 1> bias = mekf.gyroscope_bias();
+        std::cout <<"x: " << bias(0,0)<<"y: " << bias(1,0)<<"z: " << bias(2,0)<<std::endl;
 
         if (i % 100 == 0)
         { // Flush every 100 iterations
@@ -152,7 +154,6 @@ int main(int argc, char *argv[])
 
     quat = mekf.quaternion();
 
-    Eigen::Matrix<float, 3, 1> bias = mekf.gyroscope_bias();
-
+   
     outfile.close();
 }

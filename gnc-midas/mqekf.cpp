@@ -108,7 +108,7 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
     // x * A = b
     // Which can be solved with the code below
     Eigen::FullPivLU<Eigen::Matrix<float, 6, 6>> lu(s); //  LU decomposition of s
-    if (lu.isInvertible())
+    if (lu.determinant() != 0)                                 // change from invertible to allow tiny determinant to pass through 
     {
         Eigen::Matrix<float, 6, 6> const K = P * C.transpose() * lu.inverse(); // gain
 
@@ -152,7 +152,7 @@ void QuaternionMEKF::measurement_update_partial(
 
     // K = P * C.T * s^-1
     Eigen::FullPivLU<Eigen::Matrix<float, 3, 3>> lu(s);
-    if (lu.isInvertible())
+        if (lu.isInvertible())                                 // change from invertible to allow tiny determinant to pass through 
     {
         Eigen::Matrix<float, 6, 3> const K = P * C.transpose() * lu.inverse();
 

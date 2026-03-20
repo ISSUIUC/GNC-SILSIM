@@ -64,6 +64,7 @@ https://www.st.com/resource/en/datasheet/lsm6dsv320x.pdf
 - Accel high-g Noise Density High Perfomance($\frac{ug}{\sqrt{Hz}}$): 1000
 - Accel low-g Noise Density Normal Perfomance($\frac{ug}{\sqrt{Hz}}$): 100
 - Accel RMS Noise Low Power Mode 1,2,3 (mg RMS): 2.7, 2.1, 1.5
+- Angular Velocity (mdps/√Hz): 3.8 
 
 ### Magnetometer (MMC5983MA):
 
