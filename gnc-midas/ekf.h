@@ -3,8 +3,7 @@
 #include "kalman_filter.h"
 #include "sensor_data.h"
 #include "Buffer.h" 
-#include "constants.h"
-#include "aero_coeff.h"
+#include "ekf_constants.h"
 #include "rotation.h"
 
 #define NUM_STATES 6  // [x, vx, y, vy, z, vz] - position and velocity only

@@ -1,18 +1,18 @@
 #include "mqekf.h"
 #include <iostream>
-#include <constants.h>
+#include <mqekf_constants.h>
 
-QuaternionMEKF::QuaternionMEKF(
-    const Eigen::Matrix<float, 3, 1> &sigma_a,
-    const Eigen::Matrix<float, 3, 1> &sigma_g,
-    const Eigen::Matrix<float, 3, 1> &sigma_m)
+QuaternionMEKF::QuaternionMEKF()
 {
-    float Pq0 = 1e-6;
-    float Pb0 = 1e-1;
+   
     Q = initialize_Q(sigma_g);
+    Eigen::Matrix<float, 3, 1> sigma_a = {accel_noise_density_x * sqrt(100.0f) * 1e-6 * 9.81, accel_noise_density_y * sqrt(100.0f) * 1e-6 * 9.81, accel_noise_density_z * sqrt(100.0f) * 1e-6 * 9.81}; // ug/sqrt(Hz) *sqrt(hz). values are from datasheet
+    Eigen::Matrix<float, 3, 1> sigma_g = {gyro_RMS_noise* pi / 180,gyro_RMS_noise * pi / 180, gyro_RMS_noise * pi / 180};                                                 // 0.1 deg/s
+    Eigen::Matrix<float, 3, 1> sigma_m = {mag_noise*1e-4 / sqrt(3), mag_noise*1e-4 / sqrt(3), mag_noise*1e-4 / sqrt(3)};                                                 // 0.4 mG -> T, it is 0.4 total so we divide by sqrt3
+
 
     Eigen::Matrix<float, 6, 1> sigmas;
-    sigmas << sigma_a, sigma_m;
+        sigmas << sigma_a, sigma_m;
     R = sigmas.array().square().matrix().asDiagonal();
 
     qref.setIdentity(); // 1,0,0,0
@@ -63,8 +63,6 @@ double QuaternionMEKF::calculate_tilt()
         tilt = acos(dot / (cur_mag * ref_mag));
     }
 
-    // tilt -= 
-    const float gain = 0.2;
     // Arthur's Comp Filter
     // float filtered_tilt = gain * tilt + (1 - gain) * prev_tilt;
     // prev_tilt = filtered_tilt;
@@ -225,7 +223,7 @@ Eigen::Matrix<float, 6, 6> QuaternionMEKF::initialize_Q(Eigen::Matrix<float, 3, 
 {
     Eigen::Matrix<float, 6, 6> Q = Eigen::Matrix<float, 6, 6>::Zero();
     Q.block<3,3>(0,0) = sigma_g.array().square().matrix().asDiagonal();
-    Q.block<3,3>(3,3) = 1e-12 * Eigen::Matrix3f::Identity();
+    Q.block<3,3>(3,3) = 1e-12 * Eigen::Matrix3f::Identity(); //why 1e-12
     return Q;
 
 

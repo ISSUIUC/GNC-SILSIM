@@ -1,4 +1,5 @@
-#include <Eigen/Eigen>
+#include <../Eigen/Eigen>
+#include <ekf_constants.h>
 /**************************** ROTATION FUNCTIONS ****************************/
 
 // Used in ekf.cpp for ECEF and ENU conversions
@@ -6,7 +7,6 @@
 #define F (1.0 / 298.257223563)          // Flattening factor
 #define B (A * (1 - F))                  // Polar radius
 #define E_SQ ((A * A - B * B) / (A * A)) // Eccentricity squared
-#define pi 3.1415
 
 /**
  * @brief Converts a vector in the body frame to the global frame
@@ -117,23 +117,3 @@ inline std::vector<float> ecef_to_enu(std::vector<float> curr_ecef, std::vector<
 
     return {east, north, up};
 }
-
-// void eulerToQuaternion(
-//     float roll,
-//     float pitch,
-//     float yaw,
-//     Eigen::Matrix<float, 4, 1> &quat)
-// {
-
-//     float cr = cos(roll * 0.5f);
-//     float sr = sin(roll * 0.5f);
-//     float cp = cos(pitch * 0.5f);
-//     float sp = sin(pitch * 0.5f);
-//     float cy = cos(yaw * 0.5f);
-//     float sy = sin(yaw * 0.5f);
-
-//     quat(0, 0) = cy * cp * cr + sy * sp * sr;
-//     quat(1, 0) = cy * cp * sr - sy * sp * cr;
-//     quat(2, 0) = sy * cp * sr + cy * sp * cr;
-//     quat(3, 0) = sy * cp * cr - cy * sp * sr;
-// }
