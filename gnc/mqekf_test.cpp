@@ -1,5 +1,5 @@
 #include "mqekf.h"
-#include <Eigen/Eigen>
+#include <../Eigen/Eigen>
 #include <iomanip>
 #include <iostream>
 #include <fstream>
@@ -17,15 +17,12 @@ int main(int argc, char *argv[])
     }
 
     std::string input_file = argv[1];
-    Eigen::Matrix<float, 3, 1> sigma_a = {160 * sqrt(100.0f) * 1e-6 * 9.81, 160 * sqrt(100.0f) * 1e-6 * 9.81, 190 * sqrt(100.0f) * 1e-6 * 9.81}; // ug/sqrt(Hz) *sqrt(hz). values are from datasheet
-    Eigen::Matrix<float, 3, 1> sigma_g = {0.1 * M_PI / 180, 0.1 * M_PI / 180, 0.1 * M_PI / 180};                                                 // 0.1 deg/s
-    Eigen::Matrix<float, 3, 1> sigma_m = {0.4e-4 / sqrt(3), 0.4e-4 / sqrt(3), 0.4e-4 / sqrt(3)};                                                 // 0.4 mG -> T, it is 0.4 total so we divide by sqrt3
 
     //sigma_a = Eigen::Matrix<float, 3, 1>::Constant(0.05f);
     //sigma_m = Eigen::Matrix<float, 3, 1>::Constant(0.05f);
 
 
-    QuaternionMEKF mekf(sigma_a, sigma_g, sigma_m);
+    QuaternionMEKF mekf;
 
     Eigen::Matrix<float, 3, 1> acc0 = {9.81, 0, 0 };         // Factored in
     Eigen::Matrix<float, 3, 1> mag0 = {0.34, -0.01, -0.75}; // Factored in ??

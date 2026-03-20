@@ -12,7 +12,7 @@ const float mag_noise = 0.4; //mG
 
 
 const float Pq0 = 1e-6;
-const float Pb0 = 1e-1;
+const float Pb0 = 1e-4;
 
 
 

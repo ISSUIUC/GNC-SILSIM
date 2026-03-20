@@ -1,20 +1,17 @@
 #include "mqekf.h"
 #include <iostream>
-#include <constants.h>
+#include <mqekf_constants.h>
 #include <thread>
 #include <chrono>
 
-QuaternionMEKF::QuaternionMEKF(
-    const Eigen::Matrix<float, 3, 1> &sigma_a,
-    const Eigen::Matrix<float, 3, 1> &sigma_g,
-    const Eigen::Matrix<float, 3, 1> &sigma_m)
+QuaternionMEKF::QuaternionMEKF()
 {
-    float Pq0 = 1e-6;
-    float Pb0 = 1e-4;
+    sigma_a = {accel_noise_density_x * sqrt(100.0f) * 1e-6 * 9.81, accel_noise_density_y * sqrt(100.0f) * 1e-6 * 9.81, accel_noise_density_z * sqrt(100.0f) * 1e-6 * 9.81}; // ug/sqrt(Hz) *sqrt(hz). values are from datasheet
+    sigma_g = {gyro_RMS_noise * pi / 180, gyro_RMS_noise * pi / 180, gyro_RMS_noise * pi / 180};                                                 // 0.1 deg/s
+    sigma_m = {mag_noise*1e-4 / sqrt(3), mag_noise*1e-4 / sqrt(3), mag_noise*1e-4 / sqrt(3)};                                                 // 0.4 mG -> T, it is 0.4 total so we divide by sqrt3
+
     Q = initialize_Q(sigma_g);
-    sigma_a_ = sigma_a;
-    sigma_g_ = sigma_g;
-    sigma_m_ = sigma_m;
+    
 
     Eigen::Matrix<float, 6, 1> sigmas;
     sigmas << sigma_a, sigma_m;
@@ -90,7 +87,7 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
 
     if (acc(0) < 0 ) // Check if the norm of the accelerometer measurement is in boost
     {
-       Eigen::Matrix<float, 3, 3> Rm = sigma_m_.array().square().matrix().asDiagonal(); 
+       Eigen::Matrix<float, 3, 3> Rm = sigma_m.array().square().matrix().asDiagonal(); 
        measurement_update_partial(mag, magnetometer_measurement_func(), Rm);
        return; 
     }
@@ -132,7 +129,7 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
         Eigen::Matrix<float, 6, 6> const K = P * C.transpose() * lu.inverse(); // gain
         
         x += K * inno; // applying correction???
-        std::cout << "bias: " << x(3)  << " " << x(4) << " " << x(5) << std::endl;
+        //std::cout << "bias: " << x(3)  << " " << x(4) << " " << x(5) << std::endl;
         //std::cout << "inno: " << inno.transpose() << std::endl;
         //std::cout << "K*inno: " << (K * inno).transpose() << std::endl;
         //std::cout << "K * inno: " << K * inno << std::endl;

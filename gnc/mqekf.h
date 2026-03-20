@@ -3,14 +3,12 @@
 #include "sensor_data.h" // for sim
 #include "Buffer.h"      // for sim
 
-#include <Eigen/Eigen>
+#include <../Eigen/Eigen>
 
 class QuaternionMEKF
 {
 public:
-    QuaternionMEKF(const Eigen::Matrix<float, 3, 1> &sigma_a,
-                                   const Eigen::Matrix<float, 3, 1> &sigma_g,
-                                   const Eigen::Matrix<float, 3, 1> &sigma_m);
+    QuaternionMEKF();
 
     void initialize_from_acc_mag(Eigen::Matrix<float, 3, 1> const &acc, Eigen::Matrix<float, 3, 1> const &mag);
     void time_update(Eigen::Matrix<float, 3, 1> const &gyr, float Ts);
@@ -53,9 +51,10 @@ private:
     Eigen::Matrix<float, 3, 1> magnetometer_measurement_func() const;
 
     static Eigen::Matrix<float, 6, 6> initialize_Q(Eigen::Matrix<float, 3, 1> sigma_g);
-    Eigen::Matrix<float,3,1> sigma_a_;
-    Eigen::Matrix<float,3,1> sigma_g_;
-    Eigen::Matrix<float,3,1> sigma_m_;
+    Eigen::Matrix<float, 3, 1> sigma_a; // ug/sqrt(Hz) *sqrt(hz). values are from datasheet
+    Eigen::Matrix<float, 3, 1> sigma_g;  // 0.1 deg/s
+    Eigen::Matrix<float, 3, 1> sigma_m;  // 0.4 mG -> T, it is 0.4 total so we divide by sqrt3
+
 };
 
 extern QuaternionMEKF qmekf;
