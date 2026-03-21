@@ -1,5 +1,5 @@
 #include <../Eigen/Eigen>
-#include <ekf_constants.h>
+#include <constants.h>
 /**************************** ROTATION FUNCTIONS ****************************/
 
 // Used in ekf.cpp for ECEF and ENU conversions

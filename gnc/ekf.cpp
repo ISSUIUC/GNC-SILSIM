@@ -1,6 +1,8 @@
 #include "ekf.h"
 #include "fsm_states.h"
 #include <iostream>
+#include <../Eigen/Eigen>
+
 
 EKF::EKF() : KalmanFilter()
 {
@@ -26,7 +28,6 @@ EKF::EKF() : KalmanFilter()
  */
 void EKF::initialize(RocketSystems *args)
 {
-    Orientation orientation = args->rocket_data.orientation.getRecentUnsync();
     float sum = 0;
 
     for (int i = 0; i < 30; i++)
@@ -57,10 +58,10 @@ void EKF::initialize(RocketSystems *args)
     P_k.block<2, 2>(4, 4) = Eigen::Matrix2f::Identity() * process_noise_factor; // z block (pos,vel)
 
     // set Measurement Noise Matrix
-    R(0, 0) = barometer_noise;  // barometer noise (m)
+    R(0, 0) = barometer_noise;    // barometer noise (m)
     R(1, 1) = gps_noise_altitude; // GPS altitude noise (m)
-    R(2, 2) = gps_noise_east; // GPS east noise (deg)
-    R(3, 3) = gps_noise_north; // GPS north noise (deg)
+    R(2, 2) = gps_noise_east;     // GPS east noise (deg)
+    R(3, 3) = gps_noise_north;    // GPS north noise (deg)
 }
 
 /**
@@ -71,7 +72,7 @@ void EKF::initialize(RocketSystems *args)
  * it extrapolates the state at time n+1 based on the state at time n.
  */
 
-void EKF::priori(float dt, Orientation &orientation, FSMState fsm, Acceleration acceleration)
+void EKF::priori(float dt, Eigen::Quaternionf& body_orientation, FSMState &fsm, Acceleration& acceleration)
 {
     setF(dt);
     setB(dt);
@@ -104,10 +105,10 @@ void EKF::priori(float dt, Orientation &orientation, FSMState fsm, Acceleration 
  * Updates with barometer (always) and GPS (if available).
  *
  */
-void EKF::update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState FSM_state, GPS &gps)
+void EKF::update(Barometer &barometer, Acceleration &acceleration, Eigen::Quaternionf &body_orientation, FSMState &fsm, GPS &gps)
 {
     // if on pad take last 10 barometer measurements for init state
-    if (FSM_state == FSMState::STATE_IDLE)
+    if (fsm == FSMState::STATE_IDLE)
     {
         float sum = 0;
         float data[10];
@@ -121,7 +122,7 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
     }
 
     // Update GPS reference point if in IDLE state (needed before GPS measurement update)
-    reference_GPS(gps, FSM_state);
+    reference_GPS(gps, fsm);
 
     // Check if GPS has valid fix
     bool gps_available = (gps.fix_type != 0 && gps.latitude != 0 && gps.longitude != 0);
@@ -210,21 +211,22 @@ void EKF::update(Barometer barometer, Acceleration acceleration, Orientation ori
  * @param &orientation Current orientation
  * @param current_state Current FSM_state
  */
-void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState FSM_state, GPS &gps)
+void EKF::tick(float dt, float sd, Barometer &barometer, Acceleration &acceleration, Eigen::Quaternionf &body_orientation, FSMState &fsm, GPS &gps)
 {
-    if (FSM_state >= FSMState::STATE_IDLE)
+    if (fsm >= FSMState::STATE_IDLE)
     {
-        if (FSM_state != last_fsm)
+        if (fsm != last_fsm)
         {
             stage_timestamp = 0;
-            last_fsm = FSM_state;
+            last_fsm = fsm;
         }
         stage_timestamp += dt;
-        s_dt = dt; // Store dt for use in update
+        // s_dt = dt; // Store dt for use in update
+
 
         setQ(dt, sd);
-        priori(dt, orientation, FSM_state, acceleration);
-        update(barometer, acceleration, orientation, FSM_state, gps);
+        priori(dt, body_orientation, fsm, acceleration);
+        update(barometer, acceleration,body_orientation, fsm, gps);
     }
 }
 
@@ -268,23 +270,23 @@ void EKF::setState(KalmanState state)
 void EKF::setQ(float dt, float sd)
 {
     // continuous acceleration noise
-   
+
     Q.setZero();
     // X axis
-    Q(0, 0) = pow(dt, 4) / 4.0f * sigma_a * sigma_a;
-    Q(0, 1) = pow(dt, 3) / 2.0f * sigma_a * sigma_a;
+    Q(0, 0) = pow(dt, 4) / 4.0f * accel_RMS * accel_RMS;
+    Q(0, 1) = pow(dt, 3) / 2.0f * accel_RMS * accel_RMS;
     Q(1, 0) = Q(0, 1);
-    Q(1, 1) = pow(dt, 2) * sigma_a * sigma_a;
+    Q(1, 1) = pow(dt, 2) * accel_RMS * accel_RMS;
     // Y axis
-    Q(2, 2) = pow(dt, 4) / 4.0f * sigma_a * sigma_a;
-    Q(2, 3) = pow(dt, 3) / 2.0f * sigma_a * sigma_a;
+    Q(2, 2) = pow(dt, 4) / 4.0f * accel_RMS * accel_RMS;
+    Q(2, 3) = pow(dt, 3) / 2.0f * accel_RMS * accel_RMS;
     Q(3, 2) = Q(2, 3);
-    Q(3, 3) = pow(dt, 2) * sigma_a * sigma_a;
+    Q(3, 3) = pow(dt, 2) * accel_RMS * accel_RMS;
     // Z axis
-    Q(4, 4) = pow(dt, 4) / 4.0f * sigma_a * sigma_a;
-    Q(4, 5) = pow(dt, 3) / 2.0f * sigma_a * sigma_a;
+    Q(4, 4) = pow(dt, 4) / 4.0f * accel_RMS * accel_RMS;
+    Q(4, 5) = pow(dt, 3) / 2.0f * accel_RMS * accel_RMS;
     Q(5, 4) = Q(4, 5);
-    Q(5, 5) = pow(dt, 2) * sigma_a * sigma_a;
+    Q(5, 5) = pow(dt, 2) * accel_RMS * accel_RMS;
 }
 
 /**
@@ -315,7 +317,7 @@ void EKF::setB(float dt)
     B_mat(5, 2) = dt;             // vz += az * dt
 }
 
-void EKF::reference_GPS(GPS &gps, FSMState fsm)
+void EKF::reference_GPS(GPS &gps, FSMState &fsm)
 {
     if (gps.latitude == 0 || gps.longitude == 0)
     {
@@ -324,8 +326,8 @@ void EKF::reference_GPS(GPS &gps, FSMState fsm)
 
     if (fsm == FSMState::STATE_IDLE)
     {
-        gps_latitude_original = gps.latitude / 1e7; // int to float conversion 
-        gps_longitude_original = gps.longitude / 1e7; // int to float conversion 
+        gps_latitude_original = gps.latitude / 1e7;   // int to float conversion
+        gps_longitude_original = gps.longitude / 1e7; // int to float conversion
         gps_latitude_last = gps_latitude_original;
         gps_longitude_last = gps_longitude_original;
     }

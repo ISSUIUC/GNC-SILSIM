@@ -348,8 +348,8 @@ public:
             Orientation current_orientation = data.orientation;
             FSMState current_fsm = data.fsm;
             GPS current_gps = data.gps;
-
-            ekf.tick(dt, 13.0f, current_barom, current_accel, current_orientation, current_fsm, current_gps);
+            Eigen::Quaternionf useless_data;
+            ekf.tick(dt, 13.0f, current_barom, current_accel,useless_data , current_fsm, current_gps);
 
             KalmanData current_state = ekf.getState();
             results.push_back(current_state);

@@ -1,12 +1,12 @@
 #include "mqekf.h"
 #include <iostream>
-#include <mqekf_constants.h>
+#include <constants.h>
 #include <thread>
 #include <chrono>
 
 QuaternionMEKF::QuaternionMEKF()
 {
-    sigma_a = {accel_noise_density_x * sqrt(100.0f) * 1e-6 * 9.81, accel_noise_density_y * sqrt(100.0f) * 1e-6 * 9.81, accel_noise_density_z * sqrt(100.0f) * 1e-6 * 9.81}; // ug/sqrt(Hz) *sqrt(hz). values are from datasheet
+    sigma_a = {accel_noise_density_x * sqrt(s_dt) * 1e-6 * 9.81, accel_noise_density_y * sqrt(s_dt) * 1e-6 * 9.81, accel_noise_density_z * sqrt(s_dt) * 1e-6 * 9.81}; // ug/sqrt(Hz) *sqrt(thread speed). values are from datasheet
     sigma_g = {gyro_RMS_noise * pi / 180, gyro_RMS_noise * pi / 180, gyro_RMS_noise * pi / 180};                                                 // 0.1 deg/s
     sigma_m = {mag_noise*1e-4 / sqrt(3), mag_noise*1e-4 / sqrt(3), mag_noise*1e-4 / sqrt(3)};                                                 // 0.4 mG -> T, it is 0.4 total so we divide by sqrt3
 

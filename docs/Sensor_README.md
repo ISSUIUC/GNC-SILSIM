@@ -64,7 +64,7 @@ https://www.st.com/resource/en/datasheet/lsm6dsv320x.pdf
 - Accel high-g Noise Density High Perfomance($\frac{ug}{\sqrt{Hz}}$): 1000
 - Accel low-g Noise Density Normal Perfomance($\frac{ug}{\sqrt{Hz}}$): 100
 - Accel RMS Noise Low Power Mode 1,2,3 (mg RMS): 2.7, 2.1, 1.5
-- Angular Velocity (mdps/√Hz): 3.8 
+- Angular Velocity (mdps/√Hz): 3.8
 
 ### Magnetometer (MMC5983MA):
 
@@ -87,3 +87,46 @@ https://content.u-blox.com/sites/default/files/documents/SAM-M10Q_DataSheet_UBX-
 - Units: Altitude (m), Latitude/Longitude (deg)
 - Noise (Altitude): 1.5m
 - Noise (Latitude/Longitude): 0.3deg
+
+## Telemega Sensors
+
+Based on this datasheet: https://altusmetrum.org/AltOS/doc/altusmetrum.pdf
+
+### Accelerometer (ADXL375):
+
+https://www.analog.com/media/en/technical-documentation/data-sheets/ADXL375.PDF
+
+- Accel Noise Density($\frac{ug}{\sqrt{Hz}}$): 5000
+
+
+
+### Magnetometer (MMC5983MA):
+
+https://www.memsic.com/Public/Uploads/uploadfile/files/20220119/MMC5983MADatasheetRevA.pdf
+
+- Reference frame: We must modify this reference frame to match the IMU. Circle is at bottom left on MIDAS Mini, so we set X = Y, Y = -X, Z = -Z ![Magnetometer reference frame](MMC5983MA.png)
+- Total RMS Noise (mG): BW =00, 0.4mG, BW= 01, 0.6 mG, BW = 10, 0.8mG, BW = 11, 1.2 mG
+
+### Barometer (MS5611-01BA03):
+
+https://www.te.com/commerce/DocumentDelivery/DDEController?Action=srchrtrv&DocNm=MS5611-01BA03&DocType=Data+Sheet&DocLang=English
+
+- Units: converted to meters with altitude function
+- Noise (Resolution): 0.2m
+
+### GPS (SAM-M10Q):
+
+https://content.u-blox.com/sites/default/files/documents/SAM-M10Q_DataSheet_UBX-22013293.pdfhttps://content.u-blox.com/sites/default/files/documents/SAM-M10Q_DataSheet_UBX-22013293.pdf
+
+- Units: Altitude (m), Latitude/Longitude (deg)
+- Noise (Altitude): 1.5m
+- Noise (Latitude/Longitude): 0.3deg
+
+
+### Gyroscope (BMI088):
+
+https://www.bosch-sensortec.com/en/products/motion-sensors/imus/bmi088#technical
+
+- Units: Angular velocity (rad/s), Roll Pitch Yaw (deg)
+- Noise (Angular Velocity): 0.004 deg/s 
+

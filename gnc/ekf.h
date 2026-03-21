@@ -3,7 +3,7 @@
 #include "kalman_filter.h"
 #include "sensor_data.h"
 #include "Buffer.h" 
-#include "ekf_constants.h"
+#include "constants.h"
 #include "rotation.h"
 
 #define NUM_STATES 6  // [x, vx, y, vy, z, vz] - position and velocity only
@@ -21,8 +21,8 @@ public:
     EKF();
     void initialize(RocketSystems* args) override;
     // void priori();
-    void priori(float dt, Orientation &orientation, FSMState fsm, Acceleration acceleration); 
-    void update(Barometer barometer, Acceleration acceleration, Orientation orientation, FSMState state, GPS &gps) override;
+    void priori(float dt, Eigen::Quaternionf &body_orientation, FSMState& fsm, Acceleration &acceleration); 
+    void update(Barometer& barometer, Acceleration& acceleration, Eigen::Quaternionf& body_orientation, FSMState& fsm, GPS &gps);
 
     void setQ(float dt, float sd);
     void setF(float dt);
@@ -30,17 +30,15 @@ public:
 
     KalmanData getState() override;
     void setState(KalmanState state) override;
-    void reference_GPS(GPS &gps, FSMState fsm); 
+    void reference_GPS(GPS &gps, FSMState& fsm); 
 
-    void tick(float dt, float sd, Barometer &barometer, Acceleration acceleration, Orientation &orientation, FSMState state, GPS &gps);
+    void tick(float dt, float sd, Barometer &barometer, Acceleration& acceleration, Eigen::Quaternionf &body_orientation, FSMState& fsm, GPS &gps);
    
     bool should_reinit = false;
     float current_vel = 0.0f;
 
 
 private:
-    float s_dt = 0.05f;
-    float spectral_density_ = 13.0f;
     float kalman_apo = 0;
     std::vector<float> starting_gps;    // latitude, longitude, altitude
     std::vector<float> starting_ecef;   // x, y, z

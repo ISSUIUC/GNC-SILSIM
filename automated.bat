@@ -8,7 +8,7 @@ REM ============================================================
 echo ------------------------------------------------------------
 echo Step 1: Navigate to the GNC folder
 echo ------------------------------------------------------------
-cd gnc-midas
+cd gnc
 if errorlevel 1 (
     echo [ERROR] Could not change to 'gnc' directory.
     pause
@@ -39,7 +39,7 @@ set "OUTPUT_FILE=./output/results.csv"
 echo Using data file: %DATA_FILE%
 echo Output will be saved to: %OUTPUT_FILE%
 
-gnc-midas\main "%DATA_FILE%" "%OUTPUT_FILE%"
+gnc\main "%DATA_FILE%" "%OUTPUT_FILE%"
 if errorlevel 1 (
     echo [ERROR] Failed to run EKF executable.
     pause
