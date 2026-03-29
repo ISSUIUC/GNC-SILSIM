@@ -17,7 +17,7 @@ public:
         double wind_magnitude_variance_stddev     = 0.5,
         bool   enable_direction_variance          = false,
         bool   enable_magnitude_variance          = false,
-        std::array<double, 3> nominal_wind_direction = {-1.0, 0.0, 0.0},
+        std::array<double, 3> nominal_wind_direction = {0.0, 0.0, 0.0},
         double nominal_wind_magnitude             = 0.0
     )
         : wind_direction_variance_mean_(wind_direction_variance_mean)
@@ -77,12 +77,12 @@ public:
     }
 
     double get_pressure(double altitude) {
-        double P_0 = 101325.0;
-        double T_0 = 288.16;
-        double b   = 0.0065;
-        double g   = 9.81;
-        double R   = 287.05;
-        return P_0 * std::pow((T_0 + altitude * b) / T_0, -g / (b * R));
+            double P_0 = 101325.0;
+            double T_0 = 288.16;
+            double b   = 0.0065;
+            double g   = 9.81;
+            double R   = 287.05;
+            return P_0 * std::pow((T_0 - altitude * b) / T_0, g / (b * R));
     }
 
   
@@ -152,8 +152,9 @@ public:
         double g   = 9.81;
         double R   = 287.05;
         double pressureRatio = pressure / P_0;
-        return -(T_0 * (std::pow(pressureRatio, b * R / g) - 1.0) * std::pow(pressureRatio, -b * R / g)) / b;
+        return (T_0 / b) * (1.0 - std::pow(pressureRatio, b * R / g));
     }
+
 
     double get_speed_of_sound(double altitude) {
         double gamma        = 1.4;
