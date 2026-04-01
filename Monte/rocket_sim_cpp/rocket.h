@@ -127,6 +127,7 @@ public:
     Vec3   get_gyro_data         (const RocketState& x_state, const SensorConfig& sc);
     double get_barometer_data    (const RocketState& x_state, const SensorConfig& sc);
     Vec3   get_bno_orientation   (const RocketState& x_state, const SensorConfig& sc);
+    Vec3   get_magnetometer_data (const RocketState& x_state);
 
     // -----------------------------------------------------------------------
     // Data logging
@@ -229,6 +230,7 @@ private:
         std::vector<double> imu_accel_x, imu_accel_y, imu_accel_z;
         std::vector<double> imu_ang_pos_x, imu_ang_pos_y, imu_ang_pos_z;
         std::vector<double> imu_gyro_x, imu_gyro_y, imu_gyro_z;
+        std::vector<double> imu_mag_x, imu_mag_y, imu_mag_z;
     } sensor_dict_;
 
     std::vector<std::string> fsm_state_;

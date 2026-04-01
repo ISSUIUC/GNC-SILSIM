@@ -1,4 +1,5 @@
 #include "rocket.h"
+#include "magnetic_model.h"
 #include "vectors.h"
 #include "properties.h"
 
@@ -8,6 +9,13 @@
 #include <cmath>
 #include <algorithm>
 #include <random>
+
+namespace {
+constexpr double kLaunchLatitudeDeg = 40.0; // Champaign
+constexpr double kLaunchLongitudeDeg = -88.0;
+constexpr double kMetersPerDegreeLatitude = 111320.0;
+constexpr double kEarthRadiusKm = 6371.2;
+}
 
 // ---------------------------------------------------------------------------
 // RNG (shared across sensor functions)
@@ -283,6 +291,23 @@ Vec3 Rocket::get_bno_orientation(const RocketState& x, const SensorConfig& sc) {
             gauss_sample(x.orientation[2], err)};
 }
 
+Vec3 Rocket::get_magnetometer_data(const RocketState& x) {
+    const double latitude_deg = kLaunchLatitudeDeg + x.position[1] / kMetersPerDegreeLatitude;
+    const double longitude_scale = kMetersPerDegreeLatitude * std::cos(kLaunchLatitudeDeg * M_PI / 180.0);
+    const double longitude_deg = kLaunchLongitudeDeg + x.position[2] / longitude_scale;
+    const double radius_km = kEarthRadiusKm + x.position[0] / 1000.0;
+    const double days_since_2020 = 365.0 * 6.0;
+
+    const Vec3 ned_field = magnetic_model::magnet(radius_km,
+                                                  latitude_deg,
+                                                  longitude_deg,
+                                                  days_since_2020);
+
+    // Convert NED (north, east, down) into the sim's world frame (up, north, east).
+    const Vec3 world_field = {-ned_field[2], ned_field[0], ned_field[1]};
+    return vct::world_to_body(x.orientation, world_field);
+}
+
 // ---------------------------------------------------------------------------
 // Coefficient table update
 // ---------------------------------------------------------------------------
@@ -348,6 +373,10 @@ void Rocket::add_to_dict(const RocketState& x,
     sensor_dict_.imu_gyro_x.push_back(gyro[0]);
     sensor_dict_.imu_gyro_y.push_back(gyro[1]);
     sensor_dict_.imu_gyro_z.push_back(gyro[2]);
+    const Vec3 mag = get_magnetometer_data(x);
+    sensor_dict_.imu_mag_x.push_back(mag[0]);
+    sensor_dict_.imu_mag_y.push_back(mag[1]);
+    sensor_dict_.imu_mag_z.push_back(mag[2]);
 
     // Kalman log (split 9-vectors into 3x3 blocks)
     auto slice3 = [](const std::vector<double>& v, int start) -> std::array<double,3> {
@@ -418,6 +447,9 @@ std::vector<std::vector<std::string>> Rocket::to_csv() const {
         row.push_back(d2s(sensor_dict_.imu_gyro_x[i]));
         row.push_back(d2s(sensor_dict_.imu_gyro_y[i]));
         row.push_back(d2s(sensor_dict_.imu_gyro_z[i]));
+        row.push_back(d2s(sensor_dict_.imu_mag_x[i]));
+        row.push_back(d2s(sensor_dict_.imu_mag_y[i]));
+        row.push_back(d2s(sensor_dict_.imu_mag_z[i]));
         for (double v : kalman_dict_.x[i])     row.push_back(d2s(v));
         for (double v : kalman_dict_.y[i])     row.push_back(d2s(v));
         for (double v : kalman_dict_.z[i])     row.push_back(d2s(v));
@@ -436,8 +468,8 @@ std::vector<std::vector<std::string>> Rocket::to_midas_csv() const {
     std::vector<std::vector<std::string>> record;
     std::size_t N = sim_dict_.time.size();
 
-    constexpr double launch_lat = 40.0;
-    constexpr double launch_lon = -88.0;
+    constexpr double launch_lat = kLaunchLatitudeDeg;
+    constexpr double launch_lon = kLaunchLongitudeDeg;
     constexpr double launch_alt = 0.0;
     constexpr double DEG2RAD = M_PI / 180.0;
 
@@ -462,6 +494,9 @@ std::vector<std::vector<std::string>> Rocket::to_midas_csv() const {
         double gx = sensor_dict_.imu_gyro_x[i];
         double gy = sensor_dict_.imu_gyro_y[i];
         double gz = sensor_dict_.imu_gyro_z[i];
+        double mx = sensor_dict_.imu_mag_x[i];
+        double my = sensor_dict_.imu_mag_y[i];
+        double mz = sensor_dict_.imu_mag_z[i];
 
         double gps_lat   = launch_lat + pos[1] / 111320.0;
         double gps_lon   = launch_lon + pos[2] / (111320.0 * std::cos(launch_lat * DEG2RAD));
@@ -477,7 +512,7 @@ std::vector<std::vector<std::string>> Rocket::to_midas_csv() const {
             d2s(baro_temp - 273.15), d2s(baro_pres / 100.0), d2s(baro_alt),
             "0","0","0","0", "4.0","0.1",
             d2s(gps_lat), d2s(gps_lon), d2s(gps_alt), d2s(gps_speed), "3","8",d2s(t_ms),
-            "0.0","0.0","0.0",
+            d2s(mx), d2s(my), d2s(mz),
             "1","FULL_READING",
             d2s(yaw), d2s(pitch), d2s(roll),
             "0","0","0",
@@ -485,7 +520,7 @@ std::vector<std::vector<std::string>> Rocket::to_midas_csv() const {
             "0","0","0",
             d2s(hg_ax), d2s(hg_ay), d2s(hg_az),
             d2s(gx), d2s(gy), d2s(gz),
-            "0.0","0.0","0.0",
+            d2s(mx), d2s(my), d2s(mz),
             d2s(baro_temp - 273.15), d2s(baro_pres / 100.0),
             "0","1","0","0","0",
             d2s(gx), d2s(gy), d2s(gz),

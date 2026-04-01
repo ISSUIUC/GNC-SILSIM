@@ -18,6 +18,7 @@ add_library(rocket_sim STATIC
     motor.cpp
     forces.cpp
     rocket.cpp
+    magnetic_model.cpp
 )
 
 target_include_directories(rocket_sim PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -27,5 +28,5 @@ add_executable(sim_main main.cpp)
 target_link_libraries(sim_main PRIVATE rocket_sim)
 
 # ---- Header-only files (listed for IDE visibility) ----
-# atmosphere.h, isa_atmosphere.h, rocket_state.h,
-# sensor_config.h, properties.h, vectors.h
+# atmosphere.h, isa_atmosphere.h, magnetic_model.h,
+# rocket_state.h, sensor_config.h, properties.h, vectors.h

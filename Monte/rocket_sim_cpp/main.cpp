@@ -10,6 +10,7 @@
 #include "controller.h"
 #include "sensors.h"
 #include "sensor_config.h"
+#include "magnetic_model.h"
 
 #include <array>
 #include <chrono>
