@@ -11,6 +11,7 @@
 #include "sensors.h"
 #include "sensor_config.h"
 #include "magnetic_model.h"
+#include "liveEKF.h"
 
 #include <array>
 #include <chrono>
@@ -51,6 +52,7 @@ public:
 
     double      time()  const { return time_stamp_; }
     RocketState state() const { return x_; }
+    LiveEKF ekf_;
 
     // -----------------------------------------------------------------------
     // idle_stage
@@ -59,9 +61,10 @@ public:
     {
         while (time_stamp_ < launch_delay) {
             auto [baro_alt, accel, gyro, bno] = get_sensor_data();
+            KalmanStep k = ekf_.tick(dt_, time_stamp_ * 1000.0, baro_alt, accel, gyro, bno, FSM_IDLE, x_.position);
             rocket_->add_to_dict(x_,
                                  baro_alt, accel, bno, gyro,
-                                 ZERO9, ZERO9, ZERO9,
+                                 k.state, k.cov, k.residual,
                                  /*alpha=*/0.0,
                                  rocket_->get_rocket_dry_mass(),
                                  rocket_->get_total_motor_mass(time_stamp_),
@@ -99,10 +102,11 @@ public:
             auto [fm_test, a_test] = rocket_->forces->get_force(x_, 0.0, time_stamp_, 0.0, 0.0, 0.0);
             //std::cout << "F=" << fm_test[0][0] << " M=" << fm_test[1][0] << " alpha=" << a_test << "\n";
             auto [new_x, alpha] = rk4(x_, dt_, time_stamp_, 0.0, is_staging);
+            KalmanStep k = ekf_.tick(dt_, time_stamp_ * 1000.0, baro_alt, accel, gyro, bno, fsm, new_x.position);
 
             rocket_->add_to_dict(new_x,
                                  baro_alt, accel, bno, gyro,
-                                 ZERO9, ZERO9, ZERO9,
+                                 k.state, k.cov, k.residual,
                                  alpha,
                                  rocket_->get_rocket_dry_mass(),
                                  rocket_->get_total_motor_mass(time_stamp_),
@@ -155,10 +159,11 @@ public:
             }
 
             auto [new_x, alpha] = rk4(x_, dt_, time_stamp_, 0.0, false);
+            KalmanStep k = ekf_.tick(dt_, time_stamp_ * 1000.0, baro_alt, accel, gyro, bno, fsm, new_x.position);
 
             rocket_->add_to_dict(new_x,
                                  baro_alt, accel, bno, gyro,
-                                 ZERO9, ZERO9, ZERO9,
+                                 k.state, k.cov, k.residual,
                                  alpha,
                                  rocket_->get_rocket_dry_mass(),
                                  rocket_->get_total_motor_mass(time_stamp_),

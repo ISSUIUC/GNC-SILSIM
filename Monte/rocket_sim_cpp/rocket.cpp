@@ -504,6 +504,9 @@ std::vector<std::vector<std::string>> Rocket::to_midas_csv() const {
         double gps_speed = std::sqrt(vel[0]*vel[0] + vel[1]*vel[1] + vel[2]*vel[2]);
 
         std::string fsm = (i < fsm_state_.size()) ? fsm_state_[i] : "STATE_IDLE";
+        const auto& k_pos = kalman_dict_.x[i];
+        const auto& k_vel = kalman_dict_.y[i];
+        const auto& k_acc = kalman_dict_.z[i];
 
         std::vector<std::string> row = {
             "orientation", "0", d2s(t_ms),
@@ -526,7 +529,10 @@ std::vector<std::vector<std::string>> Rocket::to_midas_csv() const {
             d2s(gx), d2s(gy), d2s(gz),
             d2s(lg_ax), d2s(lg_ay), d2s(lg_az),
             fsm,
-            "0","0","0","0","0","0","0","0","0","0",
+            d2s(k_pos[0]), d2s(k_pos[1]), d2s(k_pos[2]),
+            d2s(k_vel[0]), d2s(k_vel[1]), d2s(k_vel[2]),
+            d2s(k_acc[0]), d2s(k_acc[1]), d2s(k_acc[2]),
+            d2s(k_pos[0]),
             "0","0","0","0","0","0","0"
         };
         record.push_back(std::move(row));

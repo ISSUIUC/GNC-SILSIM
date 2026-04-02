@@ -4,6 +4,9 @@ project(RocketSim CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(GNC_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+set(GNC_DIR  ${GNC_ROOT}/gnc)
+
 # ---- Compiler warnings ----
 if(MSVC)
     add_compile_options(/W4)
@@ -21,11 +24,15 @@ add_library(rocket_sim STATIC
     magnetic_model.cpp
 )
 
-target_include_directories(rocket_sim PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(rocket_sim PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${GNC_DIR}
+)
 
 # ---- Simulation executable ----
 add_executable(sim_main main.cpp)
 target_link_libraries(sim_main PRIVATE rocket_sim)
+target_include_directories(sim_main PRIVATE ${GNC_DIR})
 
 # ---- Header-only files (listed for IDE visibility) ----
 # atmosphere.h, isa_atmosphere.h, magnetic_model.h,

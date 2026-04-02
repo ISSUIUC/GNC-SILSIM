@@ -73,7 +73,22 @@ def main():
             [
                 {
                     "title": "Barometer Altitude",
-                    "columns": ["barometer.altitude", "kalman.altitude", "gps.altitude"],
+                    "columns": ["barometer.altitude", "kalman.position.px", "gps.altitude"],
+                    "ylabel": "Altitude",
+                },
+                {
+                    "title": "Barometer Pressure / Temperature",
+                    "columns": ["barometer.pressure", "barometer.temperature"],
+                    "ylabel": "Sensor Value",
+                },
+            ],
+        ),
+        (
+            "Barometer",
+            [
+                {
+                    "title": "Barometer Altitude",
+                    "columns": ["barometer.altitude", "kalman.position.px", "gps.altitude"],
                     "ylabel": "Altitude",
                 },
                 {
