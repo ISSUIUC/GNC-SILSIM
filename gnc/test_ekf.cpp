@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <initializer_list>
 #include <chrono>
 #include <iomanip>
 #include <algorithm>
@@ -114,12 +115,12 @@ public:
                 row = last_valid;
 
                 {
-                    std::string v = getValue(values, "sensor");
+                    std::string v = getValue(values, {"sensor"});
                     if (!v.empty() && v != "NaN")
                         row.sensor = v;
                 }
                 {
-                    std::string v = getValue(values, "file number");
+                    std::string v = getValue(values, {"file number", "discriminant"});
                     if (!v.empty() && v != "NaN")
                     {
                         try
@@ -131,7 +132,7 @@ public:
                         }
                     }
                 }
-                row.timestamp = toFloatOr(getValue(values, "timestamp"), row.timestamp);
+                row.timestamp = toFloatOr(getValue(values, "timestamp_ms"), row.timestamp);
 
                 row.gps.latitude = toFloatOr(getValue(values, "gps.latitude"), row.gps.latitude);
                 row.gps.longitude = toFloatOr(getValue(values, "gps.longitude"), row.gps.longitude);
@@ -139,20 +140,20 @@ public:
                 row.gps.fix_type = toFloatOr(getValue(values, "gps.fix_type"), row.gps.fix_type);
                 row.gps.time = toFloatOr(getValue(values, "gps.time"), row.gps.time);
 
-                row.lowg.ax = toFloatOr(getValue(values, "lowg.ax"), row.lowg.ax);
-                row.lowg.ay = toFloatOr(getValue(values, "lowg.ay"), row.lowg.ay);
-                row.lowg.az = toFloatOr(getValue(values, "lowg.az"), row.lowg.az);
+                row.lowg.ax = toFloatOr(getValue(values, "imu.lowg_acceleration.ax"), row.lowg.ax);
+                row.lowg.ay = toFloatOr(getValue(values, "imu.lowg_acceleration.ay"), row.lowg.ay);
+                row.lowg.az = toFloatOr(getValue(values, "imu.lowg_acceleration.az"), row.lowg.az);
 
-                row.highg.ax = toFloatOr(getValue(values, "highg.ax"), row.highg.ax);
-                row.highg.ay = toFloatOr(getValue(values, "highg.ay"), row.highg.ay);
-                row.highg.az = toFloatOr(getValue(values, "highg.az"), row.highg.az);
+                row.highg.ax = toFloatOr(getValue(values, "imu.highg_acceleration.ax"), row.highg.ax);
+                row.highg.ay = toFloatOr(getValue(values, "imu.highg_acceleration.ay"), row.highg.ay);
+                row.highg.az = toFloatOr(getValue(values, "imu.highg_acceleration.az"), row.highg.az);
 
                 row.barometer.temperature = toFloatOr(getValue(values, "barometer.temperature"), row.barometer.temperature);
                 row.barometer.pressure = toFloatOr(getValue(values, "barometer.pressure"), row.barometer.pressure);
                 row.barometer.altitude = toFloatOr(getValue(values, "barometer.altitude"), row.barometer.altitude);
 
                 {
-                    std::string v = getValue(values, "orientation.has_data");
+                    std::string v = getValue(values, {"orientation.has_data", "angular_kalman.has_data"});
                     if (!v.empty() && v != "NaN")
                     {
                         try
@@ -165,56 +166,63 @@ public:
                     }
                 }
                 {
-                    std::string v = getValue(values, "orientation.reading_type");
+                    std::string v = getValue(values, {"orientation.reading_type"});
                     if (!v.empty() && v != "NaN")
                         row.orientation.reading_type = v;
                 }
-                row.orientation.yaw = toFloatOr(getValue(values, "orientation.yaw"), row.orientation.yaw);
-                row.orientation.pitch = toFloatOr(getValue(values, "orientation.pitch"), row.orientation.pitch);
-                row.orientation.roll = toFloatOr(getValue(values, "orientation.roll"), row.orientation.roll);
+                row.orientation.yaw = toFloatOr(getValue(values, "angular_kalman.yaw"), row.orientation.yaw);
+                row.orientation.pitch = toFloatOr(getValue(values, "angular_kalman.pitch"), row.orientation.pitch);
+                row.orientation.roll = toFloatOr(getValue(values, "angular_kalman.roll"), row.orientation.roll);
 
-                row.orientation.orientation_velocity.vx = toFloatOr(getValue(values, "orientation.orientation_velocity.vx"), row.orientation.orientation_velocity.vx);
-                row.orientation.orientation_velocity.vy = toFloatOr(getValue(values, "orientation.orientation_velocity.vy"), row.orientation.orientation_velocity.vy);
-                row.orientation.orientation_velocity.vz = toFloatOr(getValue(values, "orientation.orientation_velocity.vz"), row.orientation.orientation_velocity.vz);
+                row.orientation.orientation_velocity.vx = toFloatOr(getValue(values, "imu.angular_velocity.vx"), row.orientation.orientation_velocity.vx);
+                row.orientation.orientation_velocity.vy = toFloatOr(getValue(values, "imu.angular_velocity.vy"), row.orientation.orientation_velocity.vy);
+                row.orientation.orientation_velocity.vz = toFloatOr(getValue(values, "imu.angular_velocity.vz"), row.orientation.orientation_velocity.vz);
 
-                row.orientation.angular_velocity.vx = toFloatOr(getValue(values, "orientation.angular_velocity.vx"), row.orientation.angular_velocity.vx);
-                row.orientation.angular_velocity.vy = toFloatOr(getValue(values, "orientation.angular_velocity.vy"), row.orientation.angular_velocity.vy);
-                row.orientation.angular_velocity.vz = toFloatOr(getValue(values, "orientation.angular_velocity.vz"), row.orientation.angular_velocity.vz);
+                row.orientation.angular_velocity.vx = toFloatOr(getValue(values, "imu.angular_velocity.vx"), row.orientation.angular_velocity.vx);
+                row.orientation.angular_velocity.vy = toFloatOr(getValue(values, "imu.angular_velocity.vy"), row.orientation.angular_velocity.vy);
+                row.orientation.angular_velocity.vz = toFloatOr(getValue(values, "imu.angular_velocity.vz"), row.orientation.angular_velocity.vz);
 
                 {
-                    std::string fsm_str = getValue(values, "fsm");
+                    std::string fsm_str = getValue(values, {"fsm", ".fsm"});
                     if (!fsm_str.empty() && fsm_str != "NaN")
                     {
-                        if (fsm_str == "STATE_SAFE")
-                            row.fsm = FSMState::STATE_SAFE;
-                        else if (fsm_str == "STATE_PYRO_TEST")
-                            row.fsm = FSMState::STATE_PYRO_TEST;
-                        else if (fsm_str == "STATE_IDLE")
-                            row.fsm = FSMState::STATE_IDLE;
-                        else if (fsm_str == "STATE_FIRST_BOOST")
-                            row.fsm = FSMState::STATE_FIRST_BOOST;
-                        else if (fsm_str == "STATE_BURNOUT")
-                            row.fsm = FSMState::STATE_BURNOUT;
-                        else if (fsm_str == "STATE_COAST")
-                            row.fsm = FSMState::STATE_COAST;
-                        else if (fsm_str == "STATE_APOGEE")
-                            row.fsm = FSMState::STATE_APOGEE;
-                        else if (fsm_str == "STATE_DROGUE_DEPLOY")
-                            row.fsm = FSMState::STATE_DROGUE_DEPLOY;
-                        else if (fsm_str == "STATE_DROGUE")
-                            row.fsm = FSMState::STATE_DROGUE;
-                        else if (fsm_str == "STATE_MAIN_DEPLOY")
-                            row.fsm = FSMState::STATE_MAIN_DEPLOY;
-                        else if (fsm_str == "STATE_MAIN")
-                            row.fsm = FSMState::STATE_MAIN;
-                        else if (fsm_str == "STATE_LANDED")
-                            row.fsm = FSMState::STATE_LANDED;
-                        else if (fsm_str == "STATE_SUSTAINER_IGNITION")
-                            row.fsm = FSMState::STATE_SUSTAINER_IGNITION;
-                        else if (fsm_str == "STATE_SECOND_BOOST")
-                            row.fsm = FSMState::STATE_SECOND_BOOST;
-                        else if (fsm_str == "STATE_FIRST_SEPARATION")
-                            row.fsm = FSMState::STATE_FIRST_SEPARATION;
+                        try
+                        {
+                            row.fsm = static_cast<FSMState>(std::stoi(fsm_str));
+                        }
+                        catch (...)
+                        {
+                            if (fsm_str == "STATE_SAFE")
+                                row.fsm = FSMState::STATE_SAFE;
+                            else if (fsm_str == "STATE_PYRO_TEST")
+                                row.fsm = FSMState::STATE_PYRO_TEST;
+                            else if (fsm_str == "STATE_IDLE")
+                                row.fsm = FSMState::STATE_IDLE;
+                            else if (fsm_str == "STATE_FIRST_BOOST")
+                                row.fsm = FSMState::STATE_FIRST_BOOST;
+                            else if (fsm_str == "STATE_BURNOUT")
+                                row.fsm = FSMState::STATE_BURNOUT;
+                            else if (fsm_str == "STATE_COAST")
+                                row.fsm = FSMState::STATE_COAST;
+                            else if (fsm_str == "STATE_APOGEE")
+                                row.fsm = FSMState::STATE_APOGEE;
+                            else if (fsm_str == "STATE_DROGUE_DEPLOY")
+                                row.fsm = FSMState::STATE_DROGUE_DEPLOY;
+                            else if (fsm_str == "STATE_DROGUE")
+                                row.fsm = FSMState::STATE_DROGUE;
+                            else if (fsm_str == "STATE_MAIN_DEPLOY")
+                                row.fsm = FSMState::STATE_MAIN_DEPLOY;
+                            else if (fsm_str == "STATE_MAIN")
+                                row.fsm = FSMState::STATE_MAIN;
+                            else if (fsm_str == "STATE_LANDED")
+                                row.fsm = FSMState::STATE_LANDED;
+                            else if (fsm_str == "STATE_SUSTAINER_IGNITION")
+                                row.fsm = FSMState::STATE_SUSTAINER_IGNITION;
+                            else if (fsm_str == "STATE_SECOND_BOOST")
+                                row.fsm = FSMState::STATE_SECOND_BOOST;
+                            else if (fsm_str == "STATE_FIRST_SEPARATION")
+                                row.fsm = FSMState::STATE_FIRST_SEPARATION;
+                        }
                     }
                 }
 
@@ -244,6 +252,19 @@ private:
         if (it != header_index.end() && it->second < values.size())
         {
             return values[it->second];
+        }
+        return "0";
+    }
+
+    std::string getValue(const std::vector<std::string> &values, std::initializer_list<std::string> header_options)
+    {
+        for (const std::string &header : header_options)
+        {
+            auto it = header_index.find(header);
+            if (it != header_index.end() && it->second < values.size())
+            {
+                return values[it->second];
+            }
         }
         return "0";
     }
@@ -441,8 +462,9 @@ private:
 
 int main(int argc, char *argv[])
 {
-    std::string csv_filename = "MIDAS Sustainer (Trimmed CSV).csv";
-    std::string output_filename = "ekf_results.csv";
+    //std::string csv_filename = "MIDAS Sustainer (Trimmed CSV).csv";
+    std::string csv_filename = "../data/Ashley_Data_MIDAS_MINI.csv";
+    std::string output_filename = "../output/ekf_results.csv";
     FSMState stop_state = FSMState::STATE_LANDED;
 
     if (argc > 1)
@@ -517,3 +539,5 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
+

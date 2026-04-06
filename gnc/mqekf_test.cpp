@@ -74,18 +74,35 @@ int main(int argc, char *argv[])
         // Extract the sensor values (columns 16-24)
         if (row.size() > 24)
         {
-            std::vector<double> accel_sample = {std::stod(row[16]), std::stod(row[17]), std::stod(row[18])};
-            std::vector<double> gyro_sample = {-std::stod(row[19]), std::stod(row[20]), -std::stod(row[21])};
-            std::vector<double> mag_sample = {-std::stod(row[22]), std::stod(row[23]), -std::stod(row[24])};
 
+            std::vector<double> accel_sample = {std::stod(row[2]), std::stod(row[3]), std::stod(row[4])};
+            std::vector<double> gyro_sample = {std::stod(row[8]), std::stod(row[9]), std::stod(row[10])};
+            //std::vector<double> mag_sample = {std::stod(row[27]), std::stod(row[28]), std::stod(row[29])};
+            std::vector<double> mag_sample = {std::stod(row[28]), -std::stod(row[27]), std::stod(row[29])};
+            
             // std::vector<double> accel_sample = {std::stod(row[18]), std::stod(row[17]), -std::stod(row[16])};
             // std::vector<double> gyro_sample = {std::stod(row[19]), std::stod(row[20]), std::stod(row[21])};
             // //std::vector<double> gyro_sample = {std::stod(row[20]), std::stod(row[19]), std::stod(row[21])};            
             // std::vector<double> mag_sample = {std::stod(row[22]), std::stod(row[23]), std::stod(row[24])};
             // std::vector<double> mag_sample = {std::stod(row[22]), std::stod(row[23]), std::stod(row[24])};            
-            std::vector<double> gps_sample = {std::stod(row[34]), std::stod(row[35])};
-            std::vector<double> altitude_sample = {std::stod(row[9])};
-            std::vector<double> time_sample = {std::stod(row[4])};
+            std::vector<double> gps_sample = {std::stod(row[25]), std::stod(row[26])};
+            std::vector<double> altitude_sample = {std::stod(row[30])};
+            std::vector<double> time_sample = {std::stod(row[1])};
+
+
+            // Midas Frame: 
+            // std::vector<double> accel_sample = {std::stod(row[16]), std::stod(row[17]), std::stod(row[18])};
+            // std::vector<double> gyro_sample = {-std::stod(row[19]), std::stod(row[20]), -std::stod(row[21])};
+            // std::vector<double> mag_sample = {-std::stod(row[22]), std::stod(row[23]), -std::stod(row[24])};
+
+            // // std::vector<double> accel_sample = {std::stod(row[18]), std::stod(row[17]), -std::stod(row[16])};
+            // // std::vector<double> gyro_sample = {std::stod(row[19]), std::stod(row[20]), std::stod(row[21])};
+            // // //std::vector<double> gyro_sample = {std::stod(row[20]), std::stod(row[19]), std::stod(row[21])};            
+            // // std::vector<double> mag_sample = {std::stod(row[22]), std::stod(row[23]), std::stod(row[24])};
+            // // std::vector<double> mag_sample = {std::stod(row[22]), std::stod(row[23]), std::stod(row[24])};            
+            // std::vector<double> gps_sample = {std::stod(row[34]), std::stod(row[35])};
+            // std::vector<double> altitude_sample = {std::stod(row[9])};
+            // std::vector<double> time_sample = {std::stod(row[4])};
             
 
             // std::vector<double> accel_scaled = {

@@ -357,7 +357,7 @@ def main():
     if len(sys.argv) > 1:
         csv_file = sys.argv[1]
     else:
-        csv_file = "output/results.csv"
+        csv_file = "../output/ekf_results.csv"
         csv_file2 = "output/results.csv"
         # csv_file1 = "output/TeleMega (AL3, EEPROM).csv"
     

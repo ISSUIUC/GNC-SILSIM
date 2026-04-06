@@ -48,7 +48,7 @@ inline constexpr float gps_noise_north = 0.3f;         // GPS north noise (deg)
 inline constexpr float accel_bias_x = 0.0f;            // accelerometer bias in x (g),  already calibrated
 inline constexpr float accel_bias_y = 0.0f;            // accelerometer bias in x (g),   already calibrated
 inline constexpr float accel_bias_z = 0.0f;            // accelerometer bias in x (g),   already calibrated
-inline constexpr float accel_RMS = 2.1f * 1e-4 * 9.81; // standard deviation of accelerometer noise (originally in mg, converted then to m/s^2) // review
+inline constexpr float accel_RMS = 0.14f; //0.15f; //2.1f #* 1e-4 * 9.81; // standard deviation of accelerometer noise (originally in mg, converted then to m/s^2) // review
 
 // MQEKF constants
 
@@ -60,6 +60,7 @@ inline constexpr float mag_noise = 0.6;              // mG
 
 inline constexpr float Pq0 = 1e-6;
 inline constexpr float Pb0 = 1e-4;
+
 #elif SENSOR_MODE == TELEMEGA
 inline constexpr spectral_density_ = 13.0f;
 

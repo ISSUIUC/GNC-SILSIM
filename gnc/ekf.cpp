@@ -58,10 +58,10 @@ void EKF::initialize(RocketSystems *args)
     P_k.block<2, 2>(4, 4) = Eigen::Matrix2f::Identity() * process_noise_factor; // z block (pos,vel)
 
     // set Measurement Noise Matrix
-    R(0, 0) = barometer_noise;    // barometer noise (m)
-    R(1, 1) = gps_noise_altitude; // GPS altitude noise (m)
-    R(2, 2) = gps_noise_east;     // GPS east noise (deg)
-    R(3, 3) = gps_noise_north;    // GPS north noise (deg)
+    R(0, 0) = barometer_noise*barometer_noise  ;    // barometer noise (m)
+    R(1, 1) = gps_noise_altitude*gps_noise_altitude; // GPS altitude noise (m)
+    R(2, 2) = gps_noise_east*gps_noise_east;     // GPS east noise (deg)
+    R(3, 3) = gps_noise_north*gps_noise_north;    // GPS north noise (deg) // squared because R is covariance matrix
 }
 
 /**
@@ -272,6 +272,7 @@ void EKF::setQ(float dt, float sd)
     // continuous acceleration noise
 
     Q.setZero();
+    // max(delta_v)/T
     // X axis
     Q(0, 0) = pow(dt, 4) / 4.0f * accel_RMS * accel_RMS;
     Q(0, 1) = pow(dt, 3) / 2.0f * accel_RMS * accel_RMS;
