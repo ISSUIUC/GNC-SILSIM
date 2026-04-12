@@ -6,7 +6,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-INPUT_FILE="data/MIDAS Trimmed (AL2, CSV).csv"
+INPUT_FILE="data/MIDAS_SAWA (Trimmed CSV).csv"
 OUTPUT_FILE="output/results.csv"
 PLOT_RESULTS=true
 STOP_STATE="STATE_LANDED"
@@ -125,18 +125,7 @@ echo ""
 
 if [ "$PLOT_RESULTS" = true ]; then
     echo -e "${YELLOW}Step 3: Plotting results...${NC}"
-    if [ -f "plotters/plot_results.py" ]; then
-        python3 plotters/plot_results.py "$OUTPUT_FILE"
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}Plotting failed!${NC}"
-            echo "You can still view the results in: $OUTPUT_FILE"
-        else
-            echo -e "${GREEN}Plots generated successfully!${NC}"
-        fi
-    else
-        echo -e "${RED}Error: plotters/plot_results.py not found!${NC}"
-        echo "Results are available in: $OUTPUT_FILE"
-    fi
+    python3 plotters/EKF_Sim_Results_Plotter.py "$OUTPUT_FILE"
 else
     echo -e "${YELLOW}Step 3: Skipping plots (--no-plot specified)${NC}"
 fi
