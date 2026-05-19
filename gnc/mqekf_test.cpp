@@ -20,12 +20,13 @@ int main(int argc, char *argv[])
 
     //sigma_a = Eigen::Matrix<float, 3, 1>::Constant(0.05f);
     //sigma_m = Eigen::Matrix<float, 3, 1>::Constant(0.05f);
+    //-0.590149	-0.134766	-0.0529175
 
 
     QuaternionMEKF mekf;
 
     Eigen::Matrix<float, 3, 1> acc0 = {9.81, 0, 0 };         // Factored in
-    Eigen::Matrix<float, 3, 1> mag0 = {0.34, -0.01, -0.75}; // Factored in ??
+    Eigen::Matrix<float, 3, 1> mag0 = {-0.1345, 0.59, -0.05}; // Factored in ??
     //Eigen::Matrix<float, 3, 1> mag0 = {-0.75, -0.34, -0.01}; // Factored in ??
 
     mekf.initialize_from_acc_mag(acc0, mag0);
@@ -75,8 +76,8 @@ int main(int argc, char *argv[])
         if (row.size() > 24)
         {
 
-            std::vector<double> accel_sample = {std::stod(row[2]), std::stod(row[3]), std::stod(row[4])};
-            std::vector<double> gyro_sample = {std::stod(row[8]), std::stod(row[9]), std::stod(row[10])};
+            std::vector<double> accel_sample = {std::stod(row[2]) * 9.81, std::stod(row[3])* 9.81, std::stod(row[4])* 9.81};
+            std::vector<double> gyro_sample = {std::stod(row[8]), std::stod(row[9]) , std::stod(row[10])};
             //std::vector<double> mag_sample = {std::stod(row[27]), std::stod(row[28]), std::stod(row[29])};
             std::vector<double> mag_sample = {std::stod(row[28]), -std::stod(row[27]), std::stod(row[29])};
             
@@ -138,6 +139,7 @@ int main(int argc, char *argv[])
     }
 
     int n = accel_pull.size();
+    float delta_gyro{};
     outfile << "timestamp,quaternion_w,quaternion_x,quaternion_y,quaternion_z,highg.ax,highg.ay,highg.az,barometer.altitude,gps.altitude,gps.latitude,gps.longitude,orientation.roll,orientation.pitch,orientation.yaw,fsm,orientation.tilt,\n";
     for (int i = 0; i < n; i++)
     {
@@ -150,9 +152,16 @@ int main(int argc, char *argv[])
         gps << gps_pull[i][0], gps_pull[i][1];
         time = time_pull[i][0];
 
-        mekf.time_update(gyr, 0.01f);
+        if (i != 0){
+            delta_gyro = std::abs(time_pull[i][0] - time_pull[i-1][0]); // testing with time deltas from the data, but we can also use a fixed delta like 0.01s
+            delta_gyro /= 100.0f;
+        } else {
+            delta_gyro = 0.01f; // Assuming a default time step for the first iteration
+        }
+        std::cout << "Time: " << time << "s, Delta Gyro: " << delta_gyro << "s" << std::endl;
+        mekf.time_update(gyr, delta_gyro);
         //mag << 0, 0, 0;
-        mekf.measurement_update(acc, mag);
+        //mekf.measurement_update(acc, mag);
         //Eigen::Matrix<float, 3, 3> Ra = sigma_a.array().square().matrix().asDiagonal();
         //mekf.measurement_update_partial(acc, mekf.get_acc_prediction(), Ra);
         //mekf.measurement_update(acc, mag); 

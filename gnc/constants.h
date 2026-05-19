@@ -48,18 +48,18 @@ inline constexpr float gps_noise_north = 0.3f;         // GPS north noise (deg)
 inline constexpr float accel_bias_x = 0.0f;            // accelerometer bias in x (g),  already calibrated
 inline constexpr float accel_bias_y = 0.0f;            // accelerometer bias in x (g),   already calibrated
 inline constexpr float accel_bias_z = 0.0f;            // accelerometer bias in x (g),   already calibrated
-inline constexpr float accel_RMS = 0.14f; //0.15f; //2.1f #* 1e-4 * 9.81; // standard deviation of accelerometer noise (originally in mg, converted then to m/s^2) // review
+inline constexpr float accel_RMS = 0.2f; //0.14f; //0.15f; //2.1f #* 1e-4 * 9.81; // standard deviation of accelerometer noise (originally in mg, converted then to m/s^2) // review
 
 // MQEKF constants
 
 inline constexpr float accel_noise_density_x = 1000; // ug/sqrt(hz) from the accelerometer on MIDAS MINI. Assuming Acceleration noise density (high-g) in high-performance mode
 inline constexpr float accel_noise_density_y = 1000; // ug/sqrt(hz) from the accelerometer on MIDAS MINI
 inline constexpr float accel_noise_density_z = 1000; // ug/sqrt(hz) from the accelerometer on MIDAS MINI
-inline constexpr float gyro_RMS_noise = 3.8;         // mdps/√Hz
+inline constexpr float gyro_RMS_noise = 3.8 * 1e-3f;         // mdps/√Hz to deg/s 
 inline constexpr float mag_noise = 0.6;              // mG
 
-inline constexpr float Pq0 = 1e-6;
-inline constexpr float Pb0 = 1e-4;
+inline constexpr float Pq0 = 1e-3;
+inline constexpr float Pb0 = 1e-5;
 
 #elif SENSOR_MODE == TELEMEGA
 inline constexpr spectral_density_ = 13.0f;

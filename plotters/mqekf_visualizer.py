@@ -21,7 +21,11 @@ def quat_to_rotmat(q):
 file1 = r"../output/mqekf_quaternion_output.csv"
 df = pd.read_csv(file1)
 quats = df[["quaternion_w", "quaternion_x", "quaternion_y", "quaternion_z"]].to_numpy()
-time_array = df["timestamp"].to_numpy()
+time_array = df["timestamp"].to_numpy() # Normalize time to start at 0
+time_array = (time_array - time_array[0])/1000  # Convert from milliseconds to seconds
+
+quats = quats[::30]  # Downsample for animation speed # REMIND
+time_array = time_array[::30]
 
 # Set up figure
 fig = plt.figure(figsize=(10, 8))

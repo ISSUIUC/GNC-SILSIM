@@ -15,8 +15,10 @@ QuaternionMEKF::QuaternionMEKF()
 
     Eigen::Matrix<float, 6, 1> sigmas;
     sigmas << sigma_a, sigma_m;
-    R = sigmas.array().square().matrix().asDiagonal();
-
+    //R = sigmas.array().square().matrix().asDiagonal();
+    R.setZero();
+    R.block<3, 3>(0, 0) = 0.10f * 0.10f * Eigen::Matrix3f::Identity(); // accel
+    R.block<3, 3>(3, 3) = 0.25f * 0.25f * Eigen::Matrix3f::Identity(); // mag
     qref.setIdentity(); // 1,0,0,0
     x.setZero();
     P.setZero();
@@ -42,6 +44,7 @@ void QuaternionMEKF::time_update(Eigen::Matrix<float, 3, 1> const &gyr, float Ts
     F_a << F.block(0, 0, 3, 3), (-Eigen::Matrix<float, 3, 3>::Identity() * Ts),
         Eigen::Matrix<float, 3, 3>::Zero(), Eigen::Matrix<float, 3, 3>::Identity();
     P = F_a * P * F_a.transpose() + Q; // P update
+    
 }
 
 
@@ -49,7 +52,7 @@ double QuaternionMEKF::calculate_tilt()
 {
 
     Eigen::Quaternion<float>
-        ref = Eigen::Quaternionf(0, 1, 0, 0);
+    ref = Eigen::Quaternionf(0, 1, 0, 0);
 
     Eigen::Quaternion<float> rotated = qref * ref * qref.conjugate();
 
@@ -85,11 +88,10 @@ void QuaternionMEKF::measurement_update(Eigen::Matrix<float, 3, 1> const &acc, E
 {
     // Predicted measurements
 
-    if (acc(0) < 0 ) // Check if the norm of the accelerometer measurement is in boost
-    {
-       Eigen::Matrix<float, 3, 3> Rm = sigma_m.array().square().matrix().asDiagonal(); 
-       measurement_update_partial(mag, magnetometer_measurement_func(), Rm);
-       return; 
+    if (std::abs(acc.norm() - 9.81f) > 3.0f) {
+        Eigen::Matrix3f Rm = 0.25f * 0.25f * Eigen::Matrix3f::Identity();
+        measurement_update_partial(mag.normalized(), magnetometer_measurement_func(), Rm);
+        return;
     }
 
 
@@ -204,7 +206,11 @@ void QuaternionMEKF::measurement_update_partial(
 
 Eigen::Matrix<float, 4, 1> QuaternionMEKF::quaternion() 
 {
-    return qref.coeffs();
+    Eigen::Matrix<float, 4, 1> q;
+    q << qref.w(), qref.x(), qref.y(), qref.z();
+    q = q / q.norm(); // Ensure normalization
+    return q;
+    //return qref.coeffs();
 }
 
 void QuaternionMEKF::set_transition_matrix(Eigen::Ref<const Eigen::Matrix<float, 3, 1>> const &gyr, float Ts)

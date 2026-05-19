@@ -385,7 +385,7 @@ int main()
     cfg_booster.motor_delay         = 0.0;
     cfg_booster.motor_lookup_file   = "../LookUp/m2500.csv";
     cfg_booster.flap_max_ext_length = 0.0178;
-    cfg_booster.flap_max_ext_spd    = 0.001;
+    cfg_booster.flap_max_ext_spd    = 0.001; 
 
     // --- Sustainer config (from yaml) ----------------------------------------
     Rocket::Config cfg_sustainer;

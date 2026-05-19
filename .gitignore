@@ -41,3 +41,8 @@ local.env
 results*.csv
 test_*.csv
 output*.csv
+
+
+# Monte Carlo results
+Monte/Monte_Output/
+
