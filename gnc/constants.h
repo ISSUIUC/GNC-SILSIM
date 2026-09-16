@@ -10,7 +10,7 @@
 #define SENSOR_MODE MIDAS_MINI // change this to MIDAS or TELEMEGA as needed, this is the DEFAULT
 #endif
 
-inline constexpr float pi = 3.14159268;
+inline constexpr float pi = 3.14159265;
 inline constexpr float gravity_ms2 = 9.81; // (m/s^2) accel due to gravity
 inline constexpr float s_dt = 0.05f;
 
