@@ -15,6 +15,7 @@ test_ekf
 *.swp
 *.swo
 *~
+tempCodeRunnerFile.bat
 
 # OS generated files
 .DS_Store
@@ -41,3 +42,4 @@ local.env
 results*.csv
 test_*.csv
 output*.csv
+data/
