@@ -33,7 +33,7 @@ echo ------------------------------------------------------------
 echo Step 3: Run EKF on selected data file
 echo ------------------------------------------------------------
 cd ..
-set "DATA_FILE=./data_onboarding/Midas_Booster.csv"
+set "DATA_FILE=C:\Users\ahmed\Silsim\GNC-SILSIM\Barometer\data\midas_booster_flight.csv"
 set "OUTPUT_FILE=./output/results.csv"
 
 echo Using data file: %DATA_FILE%

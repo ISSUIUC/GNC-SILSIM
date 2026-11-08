@@ -146,7 +146,8 @@ public:
                 row.highg.ax = toFloatOr(getValue(values, "highg.ax"), row.highg.ax);
                 row.highg.ay = toFloatOr(getValue(values, "highg.ay"), row.highg.ay);
                 row.highg.az = toFloatOr(getValue(values, "highg.az"), row.highg.az);
-
+                std::cout << "accel layer 2" << std::endl; 
+                std::cout << getValue_accel(values, "highg.ax") << '\n' << getValue_accel(values, "highg.ay") << '\n' << getValue_accel(values, "highg.az") << std::endl; 
                 row.barometer.temperature = toFloatOr(getValue(values, "barometer.temperature"), row.barometer.temperature);
                 row.barometer.pressure = toFloatOr(getValue(values, "barometer.pressure"), row.barometer.pressure);
                 row.barometer.altitude = toFloatOr(getValue(values, "barometer.altitude"), row.barometer.altitude);
@@ -224,7 +225,7 @@ public:
                 row.highg_az = row.highg.az;
 
                 last_valid = row;
-
+               
                 data.push_back(row);
             }
             catch (const std::exception &e)
@@ -247,6 +248,16 @@ private:
         }
         return "0";
     }
+    std::string getValue_accel(const std::vector<std::string> &values, const std::string &header) {
+        auto it = header_index.find(header);
+        std::cout << "hi" << std::endl; 
+        std::cout << it->second << std::endl; 
+        if (it != header_index.end() && it->second < values.size())
+        {
+            return values[it->second];
+        }
+        return values[it->second]; 
+    } 
 };
 
 class EKFSimulator
@@ -349,6 +360,16 @@ public:
             FSMState current_fsm = data.fsm;
             GPS current_gps = data.gps;
             Eigen::Quaternionf useless_data;
+            std::cout << "[EKF INPUT] dt: " << dt << "\n"
+              << "  Baro -> Press: " << current_barom.pressure 
+              << " | Temp: " << current_barom.temperature << "\n"
+              << "  Accel -> X: " << data.highg.ax
+              << " | Y: " <<data.highg.ay
+              << " | Z: " <<data.highg.az << "\n"
+              << "  FSM State: " << static_cast<int>(current_fsm) << "\n"
+              << "  GPS -> Lat: " << current_gps.latitude 
+              << " | Lon: " << current_gps.longitude 
+              << " | Alt: " << current_gps.altitude << "\n";
             ekf.tick(dt, 13.0f, current_barom, current_accel,useless_data , current_fsm, current_gps);
 
             KalmanData current_state = ekf.getState();
